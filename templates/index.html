@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAUUSD Timing Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue: #2f5fff;
+    --blue-light: #a8bcff;
+    --blue-soft: #e3eaff;
+    --bg-card: #f5f6f8;
+    --bg-page: #ffffff;
+    --text: #1a1a1a;
+    --muted: #8e8e9a;
+    --border: #e8e8f0;
+    --green: #2fb96d;
+    --red:   #ff5a6b;
+  }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+    background:
+      radial-gradient(ellipse at 80% 10%, #ffffff 0%, transparent 40%),
+      radial-gradient(ellipse at 20% 90%, #c8d6f0 0%, transparent 50%),
+      linear-gradient(135deg, #8aa9e0 0%, #6e8fc8 50%, #b8c8e8 100%);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    background-attachment: fixed;
+  }
+
+  .dashboard {
+    width: 100%;
+    max-width: 1280px;
+    background: var(--bg-page);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.18);
+    display: grid;
+    grid-template-columns: 215px 1fr;
+    overflow: hidden;
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    background: #fff;
+    border-right: 1px solid var(--border);
+    padding: 22px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 760px;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    letter-spacing: 0;
+    font-size: 15px;
+    margin-bottom: 28px;
+    padding: 0 8px;
+    color: #111;
+  }
+  .logo-dot {
+    width: 20px; height: 20px;
+    background: var(--blue);
+    border-radius: 6px;
+    position: relative;
+  }
+  .logo-dot::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    border-right-color: transparent;
+    transform: rotate(45deg);
+  }
+
+  .nav { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+  .nav li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: #555;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .nav li:hover { background: #f5f6f8; }
+  .nav li.active {
+    background: var(--blue-soft);
+    color: var(--blue);
+    font-weight: 600;
+  }
+  .nav .badge {
+    background: var(--blue);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin-left: auto;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+  .nav .ic { font-size: 13px; opacity: 0.7; width: 16px; display: inline-block; text-align: center; }
+
+  .user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 8px 4px;
+    border-top: 1px solid var(--border);
+  }
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue), #1a3fb8);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 13px; letter-spacing: 0;
+  }
+  .user-info { font-size: 12px; letter-spacing: 0; line-height: 1.5; }
+  .user-info .name { font-weight: 600; color: #222; font-size: 13px; }
+  .user-info .role { color: var(--muted); font-size: 11px; }
+
+  /* ===== Main ===== */
+  .main {
+    padding: 20px 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 4px;
+  }
+  .meta {
+    font-size: 12px;
+    letter-spacing: 0;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .meta b { color: #111; font-weight: 600; }
+  .refresh-btn {
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    padding: 9px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .refresh-btn:hover { background: #2548d8; }
+  .refresh-btn:disabled { opacity: 0.5; cursor: default; }
+  .spinner {
+    display: none; width: 12px; height: 12px;
+    border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .refresh-btn.loading .spinner { display: inline-block; }
+  .refresh-btn.loading .btn-label { display: none; }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 14px 16px;
+    position: relative;
+  }
+
+  /* KPI cards */
+  .kpi { display: flex; flex-direction: column; gap: 18px; min-height: 120px; }
+  .kpi-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0;
+    padding: 4px 12px;
+    border: 1px solid #d0d0da;
+    border-radius: 20px;
+    background: #fff;
+    color: #444;
+  }
+  .pill.active-pill { color: var(--blue); border-color: var(--blue-light); }
+  .pill.bull { color: var(--green); border-color: #b8e6cc; }
+  .pill.bear { color: var(--red); border-color: #ffc8cc; }
+  .arrow-up {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--blue);
+    font-size: 15px;
+  }
+  .kpi-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0; color: #666;
+    display: flex; justify-content: space-between;
+  }
+  .kpi-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px; }
+  .kpi-value { font-size: 26px; font-weight: 300; letter-spacing: -0.5px; }
+  .sup { font-size: 12px; vertical-align: super; color: var(--muted); margin-left: 3px; font-weight: 400; }
+
+  /* Chart cards */
+  .chart-card { grid-column: span 2; min-height: 280px; }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: #333;
+    margin-bottom: 6px;
+  }
+  .tabs-inline { display: flex; gap: 16px; font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .tabs-inline .on { color: #111; font-weight: 600; }
+  .big-stat { font-size: 32px; font-weight: 300; letter-spacing: -1px; margin-top: 4px; }
+  .big-stat .pct { font-size: 18px; vertical-align: top; color: var(--muted); margin-left: 4px; font-weight: 400; }
+
+  .chart-box { height: 180px; margin-top: 8px; }
+  .chart-box-md { height: 280px; margin-top: 8px; }
+  .chart-box-lg { height: 460px; margin-top: 8px; }
+
+  /* Bottom row */
+  .span2 { grid-column: span 2; }
+  .span1 { grid-column: span 1; }
+
+  /* Toggle */
+  .toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 5px 4px 12px;
+    font-size: 12px; font-weight: 500; letter-spacing: 0;
+  }
+  .toggle .knob { width: 16px; height: 16px; border-radius: 50%; background: var(--blue); }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: inherit; }
+  th {
+    text-align: left; padding: 10px 12px; color: var(--muted);
+    border-bottom: 1px solid var(--border); font-weight: 600;
+    letter-spacing: 0; font-size: 11px; text-transform: uppercase;
+  }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); letter-spacing: 0; color: #333; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(47,95,255,0.04); }
+  .rank { color: var(--muted); font-size: 12px; }
+
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0; }
+  .tag-bull { background: #d5f0e0; color: var(--green); }
+  .tag-bear { background: #ffe1e4; color: var(--red); }
+  .tag-neutral { background: var(--blue-soft); color: var(--blue); }
+
+  /* Heatmap toggle */
+  .hm-toggle { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .hm-btn {
+    padding: 7px 16px; border-radius: 16px; border: 1px solid var(--border);
+    background: #fff; color: #555; cursor: pointer; font-size: 12px;
+    font-family: inherit; font-weight: 500; letter-spacing: 0;
+  }
+  .hm-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  /* Panels */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #1a1a1a; color: #fff; padding: 13px 22px;
+    border-radius: 10px; font-size: 13px; letter-spacing: 0;
+    opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 999;
+    font-family: inherit;
+  }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 980px) {
+    .dashboard { grid-template-columns: 1fr; }
+    .sidebar { min-height: auto; }
+    .grid { grid-template-columns: 1fr 1fr; }
+    .chart-card, .span2 { grid-column: span 2; }
+  }
+  @media (max-width: 600px) {
+    .grid { grid-template-columns: 1fr; }
+    .chart-card, .span2, .span1 { grid-column: span 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <div class="logo">
+        <span class="logo-dot"></span>
+        XAUOS
+      </div>
+      <ul class="nav">
+        <li class="active" onclick="setTab('overview', this)"><span class="ic">◉</span> Overview</li>
+        <li onclick="setTab('heatmap', this)"><span class="ic">▦</span> Heatmap</li>
+        <li onclick="setTab('hourly', this)"><span class="ic">◔</span> By Hour</li>
+        <li onclick="setTab('daily', this)"><span class="ic">◑</span> By Day</li>
+        <li onclick="setTab('top', this)"><span class="ic">★</span> Top Slots</li>
+        <li><span class="ic">⚙</span> Settings</li>
+        <li><span class="ic">✦</span> Alerts <span class="badge">New</span></li>
+      </ul>
+    </div>
+    <div class="user">
+      <div class="avatar">XA</div>
+      <div class="user-info">
+        <div class="name">TRADER</div>
+        <div class="role">XAUUSD ANALYST</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="meta" id="meta-info">Loading data…</div>
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
+        <span class="btn-label">⟳ REFRESH MT5</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
+
+    <!-- ============ OVERVIEW PANEL ============ -->
+    <div class="panel active" id="panel-overview">
+      <!-- KPI row -->
+      <div class="grid" id="kpi-row">
+        <div class="card kpi"><div class="kpi-header"><span class="pill">RECOVERY</span></div>
+          <div><div class="kpi-label">Loading… <span>—</span></div>
+            <div class="kpi-row"><span class="kpi-value">—</span></div></div>
+        </div>
+        <div class="card kpi"><div class="kpi-header"><span class="pill active-pill">ACTIVE</span><span class="arrow-up">↗</span></div>
+          <div><div class="kpi-label">Loading… <span>—</span></div>
+            <div class="kpi-row"><span class="kpi-value">—</span></div></div>
+        </div>
+        <div class="card kpi"><div class="kpi-header"><span class="pill active-pill">ACTIVE</span><span class="arrow-up">↗</span></div>
+          <div><div class="kpi-label">Loading… <span>—</span></div>
+            <div class="kpi-row"><span class="kpi-value">—</span></div></div>
+        </div>
+        <div class="card kpi"><div class="kpi-header"><span class="pill active-pill">ACTIVE</span><span class="arrow-up">↗</span></div>
+          <div><div class="kpi-label">Loading… <span>—</span></div>
+            <div class="kpi-row"><span class="kpi-value">—</span></div></div>
+        </div>
+      </div>
+
+      <!-- Mid row: hourly bars + daily line -->
+      <div class="grid" style="margin-top:12px;">
+        <div class="card chart-card">
+          <div class="card-header">
+            <span>HOURLY MOMENTUM</span>
+            <div class="tabs-inline">
+              <span class="on">RANGE</span><span>BULL%</span><span>SAMPLES</span>
+            </div>
+          </div>
+          <div class="big-stat" id="overview-hour-stat">—</div>
+          <div class="chart-box" id="ch-overview-hour"></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header">
+            <span>DAILY EFFICIENCY</span>
+            <span id="overview-range-label" style="font-size:12px;color:var(--muted);font-weight:500;">—</span>
+          </div>
+          <div class="big-stat" id="overview-day-stat">—</div>
+          <div class="chart-box" id="ch-overview-day"></div>
+        </div>
+      </div>
+
+      <!-- Bottom row: bull bias + tracking + benchmarks -->
+      <div class="grid" style="margin-top:12px;">
+        <div class="card span2">
+          <div class="card-header"><span>BULL/BEAR BIAS BY HOUR</span></div>
+          <div class="big-stat" id="bull-bias-stat">—</div>
+          <div class="chart-box" id="ch-bias"></div>
+        </div>
+        <div class="card span1">
+          <div class="card-header">
+            <span>TRACKING ON</span>
+            <span class="toggle">LIVE <span class="knob"></span></span>
+          </div>
+          <div style="font-size:13px;color:#555;margin-top:14px;font-weight:500;">
+            Data Coverage: <b id="trk-coverage" style="color:#111;font-weight:600;">—</b>
+          </div>
+          <div class="big-stat" style="margin-top:20px;" id="trk-samples">—</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;">
+            <span style="font-size:11px;color:var(--muted);font-weight:500;">Signal Strength</span>
+            <div style="display:flex;gap:6px;">
+              <span style="width:10px;height:10px;border-radius:50%;background:var(--blue-soft);"></span>
+              <span style="width:10px;height:10px;border-radius:50%;background:#c5d2ff;"></span>
+              <span style="width:10px;height:10px;border-radius:50%;background:#8da4ff;"></span>
+              <span style="width:10px;height:10px;border-radius:50%;background:#5a7aff;"></span>
+              <span style="width:10px;height:10px;border-radius:50%;background:var(--blue);"></span>
+            </div>
+          </div>
+        </div>
+        <div class="card span1">
+          <div class="card-header"><span>BEST SLOT</span></div>
+          <div class="big-stat" id="best-slot-stat">—</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 32px;gap:6px;margin-top:18px;">
+            <div style="background:#e3eaff;border-radius:8px;padding:12px 8px;font-size:13px;font-weight:600;text-align:center;color:#2f5fff;" id="best-slot-day">DAY</div>
+            <div style="background:#a8bcff;border-radius:8px;padding:12px 8px;font-size:13px;font-weight:600;text-align:center;color:#1a1a3a;" id="best-slot-hour">HOUR</div>
+            <div style="background:var(--blue);border-radius:8px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;" onclick="setTabByName('top')">›</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ HEATMAP PANEL ============ -->
+    <div class="panel" id="panel-heatmap">
+      <div class="card">
+        <div class="card-header"><span>HOUR × DAY HEATMAP</span></div>
+        <div class="hm-toggle">
+          <button class="hm-btn active" onclick="setHeatmap('range',this)">AVG RANGE</button>
+          <button class="hm-btn" onclick="setHeatmap('move_pct',this)">MOVE %</button>
+          <button class="hm-btn" onclick="setHeatmap('bull_pct',this)">BULL %</button>
+          <button class="hm-btn" onclick="setHeatmap('count',this)">SAMPLES</button>
+        </div>
+        <div class="chart-box-lg" id="ch-heatmap"></div>
+      </div>
+    </div>
+
+    <!-- ============ HOURLY PANEL ============ -->
+    <div class="panel" id="panel-hourly">
+      <div class="grid">
+        <div class="card chart-card">
+          <div class="card-header"><span>AVG RANGE BY HOUR</span></div>
+          <div class="chart-box-md" id="ch-hour-range"></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header"><span>BULLISH % BY HOUR</span></div>
+          <div class="chart-box-md" id="ch-hour-bull"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px;">
+        <div class="card-header"><span>HOURLY STATS</span></div>
+        <div class="table-wrap">
+          <table id="tbl-hour">
+            <thead><tr>
+              <th>Hour (BKK)</th><th>Avg Range</th><th>Avg Body</th>
+              <th>Move %</th><th>Bull %</th><th>Samples</th><th>Bias</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ DAILY PANEL ============ -->
+    <div class="panel" id="panel-daily">
+      <div class="grid">
+        <div class="card chart-card">
+          <div class="card-header"><span>AVG RANGE BY DAY</span></div>
+          <div class="chart-box-md" id="ch-day-range"></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header"><span>BULLISH % BY DAY</span></div>
+          <div class="chart-box-md" id="ch-day-bull"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px;">
+        <div class="card-header"><span>DAILY STATS</span></div>
+        <div class="table-wrap">
+          <table id="tbl-day">
+            <thead><tr>
+              <th>Day</th><th>Avg Range</th><th>Move %</th>
+              <th>Bull %</th><th>Samples</th><th>Bias</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ TOP SLOTS PANEL ============ -->
+    <div class="panel" id="panel-top">
+      <div class="card">
+        <div class="card-header"><span>TOP 20 ACTIVE HOUR × DAY COMBINATIONS</span></div>
+        <div class="table-wrap">
+          <table id="tbl-top">
+            <thead><tr>
+              <th>#</th><th>Day</th><th>Hour (BKK)</th><th>Avg Range</th>
+              <th>Move %</th><th>Bull %</th><th>Samples</th><th>Bias</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let DATA = null;
+let hmMode = 'range';
+
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+function fmtHour(h) {
+  if (h === 0) return '12AM';
+  if (h < 12) return h + 'AM';
+  if (h === 12) return '12PM';
+  return (h - 12) + 'PM';
+}
+function fmt(v, d=4) { return v != null ? (+v).toFixed(d) : '—'; }
+
+const HOUR_XAXIS = { tickangle: -45 };
+
+const CFG = { responsive: true, displayModeBar: false };
+const LAYOUT_BASE = {
+  paper_bgcolor: 'transparent',
+  plot_bgcolor: 'transparent',
+  font: { color: '#555', family: 'Inter, system-ui, sans-serif', size: 11 },
+  margin: { t: 10, r: 10, b: 40, l: 48 },
+  xaxis: { gridcolor: '#e8e8ee', zerolinecolor: '#e8e8ee', linecolor: '#d0d0d8', tickfont: { color: '#888' } },
+  yaxis: { gridcolor: '#e8e8ee', zerolinecolor: '#e8e8ee', linecolor: '#d0d0d8', tickfont: { color: '#888' } },
+};
+
+function toast(msg, ms=3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function setTab(name, navEl) {
+  document.querySelectorAll('.nav li').forEach(li => li.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'panel-' + name);
+  });
+  if (DATA) renderTab(name);
+}
+function setTabByName(name) {
+  const map = { overview: 0, heatmap: 1, hourly: 2, daily: 3, top: 4 };
+  const li = document.querySelectorAll('.nav li')[map[name]];
+  setTab(name, li);
+}
+
+function setHeatmap(mode, btn) {
+  hmMode = mode;
+  document.querySelectorAll('.hm-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (DATA) drawHeatmap();
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    if (!r.ok) {
+      const j = await r.json();
+      toast('Error: ' + j.error, 5000);
+      document.getElementById('meta-info').textContent = j.error;
+      return;
+    }
+    DATA = await r.json();
+    renderAll();
+  } catch(e) { toast('Failed to load: ' + e.message, 5000); }
+}
+
+async function refreshData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true; btn.classList.add('loading');
+  toast('Fetching data from MT5…', 60000);
+  try {
+    const r = await fetch('/api/refresh', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok) { toast('Error: ' + (j.error || 'unknown'), 6000); return; }
+    toast('Data refreshed!');
+    await loadStats();
+  } catch(e) { toast('Refresh failed: ' + e.message, 6000); }
+  finally { btn.disabled = false; btn.classList.remove('loading'); }
+}
+
+function biasBadge(bp) {
+  if (bp > 55) return `<span class="tag tag-bull">BULL</span>`;
+  if (bp < 45) return `<span class="tag tag-bear">BEAR</span>`;
+  return `<span class="tag tag-neutral">NEUTRAL</span>`;
+}
+
+function renderAll() {
+  const m = DATA.meta;
+  const from = m.from.slice(0,10), to = m.to.slice(0,10);
+  document.getElementById('meta-info').innerHTML =
+    `<b>${m.symbol}</b> &nbsp;·&nbsp; ${m.bars.toLocaleString()} BARS &nbsp;·&nbsp; ${from} → ${to} &nbsp;·&nbsp; ${m.tz}`;
+
+  buildKpis();
+  renderTab('overview');
+}
+
+function buildKpis() {
+  const bh = DATA.by_hour;
+  const bd = DATA.by_day;
+  const topHour = [...bh].sort((a,b) => b.avg_range - a.avg_range)[0];
+  const lowHour = [...bh].sort((a,b) => a.avg_range - b.avg_range)[0];
+  const topDay  = [...bd].sort((a,b) => b.avg_range - a.avg_range)[0];
+  const avgRange = bh.reduce((s,h) => s + h.avg_range, 0) / bh.length;
+  const overallBull = bh.reduce((s,h) => s + h.bull_pct, 0) / bh.length;
+
+  const kpis = [
+    {
+      pill: 'PEAK', pillCls: '',
+      label: 'MOST ACTIVE HOUR', right: 'BKK',
+      val: fmtHour(topHour.hour),
+      rightVal: fmt(topHour.avg_range, 2), rightUnit: 'PTS',
+    },
+    {
+      pill: 'BEST DAY', pillCls: 'active-pill', arrow: true,
+      label: 'TOP SESSION', right: 'AVG',
+      val: topDay.day_name.slice(0,3).toUpperCase(),
+      rightVal: fmt(topDay.avg_range, 2), rightUnit: 'PTS',
+    },
+    {
+      pill: 'QUIET', pillCls: '',
+      label: 'LOWEST HOUR', right: 'BKK',
+      val: fmtHour(lowHour.hour),
+      rightVal: fmt(lowHour.avg_range, 2), rightUnit: 'PTS',
+    },
+    {
+      pill: overallBull > 50 ? 'BULL' : 'BEAR',
+      pillCls: overallBull > 50 ? 'bull' : 'bear',
+      arrow: true,
+      label: 'OVERALL BIAS', right: 'AVG',
+      val: overallBull.toFixed(1) + '%',
+      rightVal: fmt(avgRange, 2), rightUnit: 'PTS',
+    },
+  ];
+
+  document.getElementById('kpi-row').innerHTML = kpis.map(k => `
+    <div class="card kpi">
+      <div class="kpi-header">
+        <span class="pill ${k.pillCls}">${k.pill}</span>
+        ${k.arrow ? '<span class="arrow-up">↗</span>' : ''}
+      </div>
+      <div>
+        <div class="kpi-label"><span>${k.label}</span><span>${k.right}</span></div>
+        <div class="kpi-row">
+          <span class="kpi-value">${k.val}</span>
+          <span class="kpi-value">${k.rightVal}<span class="sup">${k.rightUnit}</span></span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTab(name) {
+  if (name === 'overview') drawOverview();
+  if (name === 'heatmap') drawHeatmap();
+  if (name === 'hourly') drawHourly();
+  if (name === 'daily') drawDaily();
+  if (name === 'top') drawTop();
+}
+
+/* ─── Overview ─────────────────────────────────────────────────────── */
+function drawOverview() {
+  const bh = DATA.by_hour;
+  const bd = DATA.by_day;
+  const top = DATA.top_slots[0];
+
+  const topHour = [...bh].sort((a,b) => b.avg_range - a.avg_range)[0];
+  const topDay  = [...bd].sort((a,b) => b.avg_range - a.avg_range)[0];
+  const overallBull = bh.reduce((s,h) => s + h.bull_pct, 0) / bh.length;
+
+  document.getElementById('overview-hour-stat').innerHTML =
+    `${fmt(topHour.avg_range, 2)}<span class="pct">PTS</span>`;
+  document.getElementById('overview-day-stat').innerHTML =
+    `${fmt(topDay.avg_range, 2)}<span class="pct">PTS</span>`;
+  document.getElementById('overview-range-label').textContent =
+    `${fmtHour(topHour.hour)} — PEAK`;
+
+  document.getElementById('bull-bias-stat').innerHTML =
+    `${overallBull.toFixed(1)}<span class="pct">% BULL</span>`;
+  document.getElementById('trk-coverage').textContent =
+    `${DATA.meta.bars.toLocaleString()} BARS`;
+  document.getElementById('trk-samples').innerHTML =
+    `${(DATA.meta.bars / 1000).toFixed(1)}<span class="pct">K</span>`;
+
+  document.getElementById('best-slot-stat').innerHTML =
+    `${fmt(top.avg_range, 2)}<span class="pct">PTS</span>`;
+  document.getElementById('best-slot-day').textContent = top.day_name.toUpperCase();
+  document.getElementById('best-slot-hour').textContent = fmtHour(top.hour);
+
+  // Hourly bar chart
+  const maxR = Math.max(...bh.map(x => x.avg_range));
+  Plotly.newPlot('ch-overview-hour', [{
+    x: bh.map(r => fmtHour(r.hour)),
+    y: bh.map(r => r.avg_range),
+    type: 'bar',
+    marker: {
+      color: bh.map(r => r.avg_range === maxR ? '#2f5fff' : '#a8bcff'),
+    },
+    hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
+  }], { ...LAYOUT_BASE, xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS } }, CFG);
+
+  // Daily line chart
+  Plotly.newPlot('ch-overview-day', [{
+    x: bd.map(r => r.day_name.slice(0,3)),
+    y: bd.map(r => r.avg_range),
+    type: 'scatter', mode: 'lines+markers',
+    line: { color: '#2f5fff', width: 2, dash: 'dot' },
+    marker: { color: '#2f5fff', size: 8 },
+    hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
+  }], LAYOUT_BASE, CFG);
+
+  // Bias chart
+  Plotly.newPlot('ch-bias', [{
+    x: bh.map(r => fmtHour(r.hour)),
+    y: bh.map(r => r.bull_pct - 50),
+    type: 'bar',
+    marker: { color: bh.map(r => r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b') },
+    hovertemplate: '%{x}<br>Bull %{y:.1f}%<extra></extra>',
+  }], { ...LAYOUT_BASE, xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
+       yaxis: { ...LAYOUT_BASE.yaxis, title: { text: 'Δ from 50%', font: { size: 9 } } } }, CFG);
+}
+
+/* ─── Heatmap ──────────────────────────────────────────────────────── */
+function drawHeatmap() {
+  const hm = DATA.heatmap;
+  const matrix = hm[hmMode];
+  const labels = { range: 'Avg Range', move_pct: 'Move %', bull_pct: 'Bull %', count: 'Samples' };
+  const isBull = hmMode === 'bull_pct';
+  const cs = isBull
+    ? [[0,'#ff5a6b'],[0.5,'#f0f0f4'],[1,'#2fb96d']]
+    : [[0,'#f5f6f8'],[0.3,'#c5d2ff'],[0.6,'#5a7aff'],[0.85,'#2f5fff'],[1,'#1a3fb8']];
+  const zmid = isBull ? 50 : undefined;
+
+  Plotly.newPlot('ch-heatmap', [{
+    z: matrix, x: hm.hours.map(fmtHour), y: hm.days,
+    type: 'heatmap', colorscale: cs, zmid,
+    hoverongaps: false,
+    hovertemplate: '%{y} %{x}<br>' + labels[hmMode] + ': %{z:.3f}<extra></extra>',
+    colorbar: { thickness: 12, tickfont: { color: '#666', size: 9 } },
+  }], {
+    ...LAYOUT_BASE,
+    margin: { t: 10, r: 70, b: 50, l: 60 },
+    xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
+    yaxis: { ...LAYOUT_BASE.yaxis, autorange: 'reversed' },
+  }, CFG);
+}
+
+/* ─── Hourly ───────────────────────────────────────────────────────── */
+function drawHourly() {
+  const bh = DATA.by_hour;
+
+  Plotly.newPlot('ch-hour-range', [{
+    x: bh.map(r => fmtHour(r.hour)), y: bh.map(r => r.avg_range),
+    type: 'scatter', mode: 'lines+markers',
+    line: { color: '#2f5fff', width: 2 },
+    marker: { color: '#2f5fff', size: 6 },
+    hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
+  }], { ...LAYOUT_BASE, xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS } }, CFG);
+
+  Plotly.newPlot('ch-hour-bull', [{
+    x: bh.map(r => fmtHour(r.hour)), y: bh.map(r => r.bull_pct),
+    type: 'bar',
+    marker: { color: bh.map(r => r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b') },
+    hovertemplate: '%{x}<br>%{y:.1f}%<extra></extra>',
+  }, {
+    x: bh.map(r => fmtHour(r.hour)), y: bh.map(() => 50),
+    type: 'scatter', mode: 'lines',
+    line: { color: '#9a9aa6', width: 1, dash: 'dot' },
+    showlegend: false, hoverinfo: 'skip',
+  }], { ...LAYOUT_BASE, xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
+       yaxis: { ...LAYOUT_BASE.yaxis, range: [30, 70] }, showlegend: false }, CFG);
+
+  document.querySelector('#tbl-hour tbody').innerHTML = bh.map(r => `
+    <tr>
+      <td>${fmtHour(r.hour)}</td>
+      <td>${fmt(r.avg_range)}</td>
+      <td>${fmt(r.avg_body)}</td>
+      <td>${fmt(r.avg_move_pct, 4)}%</td>
+      <td>${r.bull_pct}%</td>
+      <td>${r.count}</td>
+      <td>${biasBadge(r.bull_pct)}</td>
+    </tr>`).join('');
+}
+
+/* ─── Daily ────────────────────────────────────────────────────────── */
+function drawDaily() {
+  const bd = DATA.by_day;
+
+  Plotly.newPlot('ch-day-range', [{
+    x: bd.map(r => r.day_name), y: bd.map(r => r.avg_range),
+    type: 'bar', marker: { color: '#2f5fff' },
+    hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
+  }], LAYOUT_BASE, CFG);
+
+  Plotly.newPlot('ch-day-bull', [{
+    x: bd.map(r => r.day_name), y: bd.map(r => r.bull_pct), type: 'bar',
+    marker: { color: bd.map(r => r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b') },
+    hovertemplate: '%{x}<br>%{y:.1f}%<extra></extra>',
+  }, {
+    x: bd.map(r => r.day_name), y: bd.map(() => 50), type: 'scatter', mode: 'lines',
+    line: { color: '#9a9aa6', width: 1, dash: 'dot' },
+    showlegend: false, hoverinfo: 'skip',
+  }], { ...LAYOUT_BASE,
+       yaxis: { ...LAYOUT_BASE.yaxis, range: [30, 70] }, showlegend: false }, CFG);
+
+  document.querySelector('#tbl-day tbody').innerHTML = bd.map(r => `
+    <tr>
+      <td>${r.day_name}</td>
+      <td>${fmt(r.avg_range)}</td>
+      <td>${fmt(r.avg_move_pct, 4)}%</td>
+      <td>${r.bull_pct}%</td>
+      <td>${r.count}</td>
+      <td>${biasBadge(r.bull_pct)}</td>
+    </tr>`).join('');
+}
+
+/* ─── Top Slots ────────────────────────────────────────────────────── */
+function drawTop() {
+  document.querySelector('#tbl-top tbody').innerHTML = DATA.top_slots.map((r, i) => `
+    <tr>
+      <td class="rank">${i+1}</td>
+      <td>${r.day_name}</td>
+      <td>${fmtHour(r.hour)}</td>
+      <td>${fmt(r.avg_range)}</td>
+      <td>${fmt(r.avg_move_pct, 4)}%</td>
+      <td>${r.bull_pct}%</td>
+      <td>${r.count}</td>
+      <td>${biasBadge(r.bull_pct)}</td>
+    </tr>`).join('');
+}
+
+loadStats();
+</script>
+</body>
+</html>
