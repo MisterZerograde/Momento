@@ -292,6 +292,119 @@
   .panel { display: none; }
   .panel.active { display: block; }
 
+  /* ===== NOW Hero ===== */
+  .now-hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #2f5fff 100%);
+    color: #fff;
+    border-radius: 14px;
+    padding: 22px 26px;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.2fr;
+    gap: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .now-hero::before {
+    content: ''; position: absolute; right: -40px; top: -40px;
+    width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(168,188,255,0.25) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .now-cell { display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1; }
+  .now-cell + .now-cell { border-left: 1px solid rgba(255,255,255,0.12); padding-left: 24px; }
+  .now-label {
+    font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.6);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .now-time { font-size: 32px; font-weight: 300; letter-spacing: -1px; }
+  .now-meta { font-size: 13px; color: rgba(255,255,255,0.75); }
+  .now-meta b { color: #fff; font-weight: 600; }
+  .session-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 16px;
+    background: rgba(255,255,255,0.15); backdrop-filter: blur(8px);
+    font-size: 12px; font-weight: 600; width: fit-content;
+  }
+  .session-badge .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #2fb96d; box-shadow: 0 0 8px #2fb96d;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .session-badge.closed .dot { background: #ff5a6b; box-shadow: 0 0 8px #ff5a6b; }
+
+  .now-stats { display: flex; flex-direction: column; gap: 10px; }
+  .now-stat-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 14px;
+  }
+  .now-stat-row .lbl { color: rgba(255,255,255,0.6); font-size: 12px; }
+  .now-stat-row .val { font-weight: 600; font-size: 17px; }
+  .now-stat-row .val.bull { color: #4ade80; }
+  .now-stat-row .val.bear { color: #ff7a8a; }
+
+  .conf-bar {
+    height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden;
+    margin-top: 4px;
+  }
+  .conf-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #f5a524, #2fb96d); }
+
+  .next-vol {
+    background: rgba(255,255,255,0.08); backdrop-filter: blur(8px);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .next-vol .head { font-size: 11px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .next-vol .countdown { font-size: 22px; font-weight: 400; }
+  .next-vol .desc { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 4px; }
+
+  /* ===== Regime banner ===== */
+  .regime-banner {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px; border-radius: 12px;
+    font-size: 13px;
+  }
+  .regime-banner.hot { background: linear-gradient(90deg, #fff4e6, #ffe9d6); color: #8a4a00; border-left: 4px solid #f5a524; }
+  .regime-banner.cool { background: linear-gradient(90deg, #e6f4ff, #d6e9ff); color: #0a3a8a; border-left: 4px solid #2f5fff; }
+  .regime-banner.normal { background: #f5f6f8; color: #555; border-left: 4px solid #ccc; }
+  .regime-banner .icon { font-size: 20px; }
+  .regime-banner .delta { font-weight: 700; }
+
+  /* ===== Today forecast strip ===== */
+  .forecast-card { padding: 16px 20px; }
+  .forecast-strip {
+    display: grid; gap: 6px; margin-top: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  }
+  .forecast-hour {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 8px;
+    display: flex; flex-direction: column; gap: 4px; align-items: center;
+    font-size: 11px; position: relative;
+    transition: transform .15s;
+  }
+  .forecast-hour:hover { transform: translateY(-2px); border-color: var(--blue-light); }
+  .forecast-hour.now { background: var(--blue); color: #fff; border-color: var(--blue); box-shadow: 0 4px 12px rgba(47,95,255,0.3); }
+  .forecast-hour.now .fh-lbl { color: rgba(255,255,255,0.85); }
+  .forecast-hour .fh-time { font-size: 13px; font-weight: 600; }
+  .forecast-hour .fh-range { font-size: 16px; font-weight: 700; }
+  .forecast-hour .fh-lbl { font-size: 10px; color: var(--muted); }
+  .forecast-hour .fh-bias { display: flex; gap: 2px; align-items: center; }
+  .forecast-hour .session-tag {
+    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; padding: 1px 6px; border-radius: 8px;
+    background: #fff; border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .forecast-hour.now .session-tag { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  /* Sub-bias bar */
+  .bias-bar { width: 100%; height: 4px; background: #eee; border-radius: 2px; overflow: hidden; margin-top: 2px; }
+  .bias-bar.fh > span { display: block; height: 100%; }
+  .forecast-hour.now .bias-bar { background: rgba(255,255,255,0.25); }
+
   /* Toast */
   #toast {
     position: fixed; bottom: 24px; right: 24px;
@@ -356,8 +469,58 @@
 
     <!-- ============ OVERVIEW PANEL ============ -->
     <div class="panel active" id="panel-overview">
+
+      <!-- NOW Hero -->
+      <div class="now-hero" id="now-hero">
+        <div class="now-cell">
+          <span class="now-label">Now · BKK</span>
+          <div class="now-time" id="now-time">—</div>
+          <div class="now-meta" id="now-meta">Loading…</div>
+          <span class="session-badge" id="now-session"><span class="dot"></span> <span id="now-session-text">—</span></span>
+        </div>
+        <div class="now-cell">
+          <span class="now-label">This hour typically</span>
+          <div class="now-stats" id="now-stats">
+            <div class="now-stat-row"><span class="lbl">Avg Range</span><span class="val">—</span></div>
+            <div class="now-stat-row"><span class="lbl">Bull bias</span><span class="val">—</span></div>
+            <div class="now-stat-row"><span class="lbl">Samples</span><span class="val">—</span></div>
+          </div>
+          <div style="margin-top:6px;">
+            <div class="now-stat-row" style="font-size:11px;">
+              <span class="lbl">Confidence</span><span class="lbl" id="conf-label">—</span>
+            </div>
+            <div class="conf-bar"><span id="conf-fill" style="width:0%"></span></div>
+          </div>
+        </div>
+        <div class="now-cell">
+          <span class="now-label">Next high-vol window</span>
+          <div class="next-vol" id="next-vol">
+            <div class="head">Searching…</div>
+            <div class="countdown">—</div>
+            <div class="desc">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Regime banner -->
+      <div class="regime-banner normal" id="regime-banner" style="margin-top:14px;">
+        <span class="icon">📊</span>
+        <div id="regime-text">Comparing recent regime to historical…</div>
+      </div>
+
+      <!-- Today's forecast strip -->
+      <div class="card forecast-card" style="margin-top:14px;">
+        <div class="card-header">
+          <span>Today's Forecast — Remaining Hours</span>
+          <span style="font-size:11px;color:var(--muted);">Hover for details</span>
+        </div>
+        <div class="forecast-strip" id="forecast-strip">
+          <div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:20px;">Loading forecast…</div>
+        </div>
+      </div>
+
       <!-- KPI row -->
-      <div class="grid" id="kpi-row">
+      <div class="grid" id="kpi-row" style="margin-top:14px;">
         <div class="card kpi"><div class="kpi-header"><span class="pill">RECOVERY</span></div>
           <div><div class="kpi-label">Loading… <span>—</span></div>
             <div class="kpi-row"><span class="kpi-value">—</span></div></div>
@@ -525,9 +688,17 @@
 
 <script>
 let DATA = null;
+let NOW = null;
 let hmMode = 'range';
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const SESSION_COLORS = {
+  'Asia':           { bg: 'rgba(245,165,36,0.08)',  line: '#f5a524' },
+  'London':         { bg: 'rgba(47,95,255,0.08)',   line: '#2f5fff' },
+  'NY':             { bg: 'rgba(47,185,109,0.08)',  line: '#2fb96d' },
+  'London-NY OVL':  { bg: 'rgba(154,77,255,0.12)',  line: '#9a4dff' },
+  'Off-hours':      { bg: 'rgba(150,150,150,0.05)', line: '#9a9aa6' },
+};
 
 function fmtHour(h) {
   if (h === 0) return '12AM';
@@ -538,6 +709,30 @@ function fmtHour(h) {
 function fmt(v, d=4) { return v != null ? (+v).toFixed(d) : '—'; }
 
 const HOUR_XAXIS = { tickangle: -45 };
+
+// Build Plotly background shapes for session bands (assumes x-axis is fmtHour labels)
+function sessionShapes() {
+  const sessions = [
+    { name: 'Asia',   start: 6,  end: 14, color: 'rgba(245,165,36,0.07)' },
+    { name: 'London', start: 14, end: 19, color: 'rgba(47,95,255,0.07)' },
+    { name: 'Overlap',start: 19, end: 23, color: 'rgba(154,77,255,0.10)' },
+    { name: 'NY',     start: 23, end: 24, color: 'rgba(47,185,109,0.07)' },
+    { name: 'NY-late',start: 0,  end: 4,  color: 'rgba(47,185,109,0.07)' },
+  ];
+  return sessions.map(s => ({
+    type: 'rect', xref: 'x', yref: 'paper',
+    x0: s.start - 0.5, x1: s.end - 0.5, y0: 0, y1: 1,
+    fillcolor: s.color, line: { width: 0 }, layer: 'below',
+  }));
+}
+function sessionAnnotations() {
+  return [
+    { x: 9.5,  y: 1.02, xref: 'x', yref: 'paper', text: 'ASIA',    showarrow: false, font: { size: 9, color: '#b87b00' } },
+    { x: 16,   y: 1.02, xref: 'x', yref: 'paper', text: 'LONDON',  showarrow: false, font: { size: 9, color: '#2f5fff' } },
+    { x: 20.5, y: 1.02, xref: 'x', yref: 'paper', text: 'OVERLAP', showarrow: false, font: { size: 9, color: '#7a36cc' } },
+    { x: 1.5,  y: 1.02, xref: 'x', yref: 'paper', text: 'NY',      showarrow: false, font: { size: 9, color: '#1a8a4a' } },
+  ];
+}
 
 const CFG = { responsive: true, displayModeBar: false };
 const LAYOUT_BASE = {
@@ -579,16 +774,27 @@ function setHeatmap(mode, btn) {
 
 async function loadStats() {
   try {
-    const r = await fetch('/api/stats');
-    if (!r.ok) {
-      const j = await r.json();
+    const [rStats, rNow] = await Promise.all([
+      fetch('/api/stats'),
+      fetch('/api/now'),
+    ]);
+    if (!rStats.ok) {
+      const j = await rStats.json();
       toast('Error: ' + j.error, 5000);
       document.getElementById('meta-info').textContent = j.error;
       return;
     }
-    DATA = await r.json();
+    DATA = await rStats.json();
+    NOW = rNow.ok ? await rNow.json() : null;
     renderAll();
   } catch(e) { toast('Failed to load: ' + e.message, 5000); }
+}
+
+async function loadNowOnly() {
+  try {
+    const r = await fetch('/api/now');
+    if (r.ok) { NOW = await r.json(); renderNow(); }
+  } catch(e) {}
 }
 
 async function refreshData() {
@@ -615,10 +821,128 @@ function renderAll() {
   const m = DATA.meta;
   const from = m.from.slice(0,10), to = m.to.slice(0,10);
   document.getElementById('meta-info').innerHTML =
-    `<b>${m.symbol}</b> &nbsp;·&nbsp; ${m.bars.toLocaleString()} BARS &nbsp;·&nbsp; ${from} → ${to} &nbsp;·&nbsp; ${m.tz}`;
+    `<b>${m.symbol}</b> &nbsp;·&nbsp; ${m.bars.toLocaleString()} bars &nbsp;·&nbsp; ${from} → ${to} &nbsp;·&nbsp; ${m.tz}`;
 
+  renderNow();
   buildKpis();
   renderTab('overview');
+}
+
+/* ─── NOW Hero ──────────────────────────────────────────────────────── */
+function renderNow() {
+  if (!NOW) return;
+  const n = NOW.now;
+  const slot = NOW.this_slot.count > 0 ? NOW.this_slot : NOW.this_hour_overall;
+  const usedFallback = NOW.this_slot.count === 0;
+
+  // Time + meta
+  document.getElementById('now-time').textContent = n.bkk_time.slice(11,16);
+  document.getElementById('now-meta').innerHTML =
+    `<b>${n.day_name}</b> · ${n.bkk_time.slice(0,10)} · Last @ ${NOW.now.last_price.toLocaleString()}` +
+    (NOW.today_summary ? ` · Today ${NOW.today_summary.change_pct >= 0 ? '+' : ''}${NOW.today_summary.change_pct}%` : '');
+
+  // Session
+  const sessionEl = document.getElementById('now-session');
+  const sessionText = document.getElementById('now-session-text');
+  const isWeekend = n.day_name === 'Saturday' || (n.day_name === 'Sunday' && n.hour < 18);
+  if (isWeekend) {
+    sessionEl.classList.add('closed');
+    sessionText.textContent = 'Market Closed · Weekend';
+  } else {
+    sessionEl.classList.remove('closed');
+    sessionText.textContent = n.session + ' Session';
+  }
+
+  // This-hour stats
+  const statsEl = document.getElementById('now-stats');
+  if (slot.count > 0) {
+    const biasCls = slot.bull_pct > 55 ? 'bull' : (slot.bull_pct < 45 ? 'bear' : '');
+    statsEl.innerHTML = `
+      <div class="now-stat-row"><span class="lbl">Avg Range</span><span class="val">${slot.avg_range.toFixed(2)} <span style="font-size:11px;opacity:.6;">pts</span></span></div>
+      <div class="now-stat-row"><span class="lbl">Bull bias</span><span class="val ${biasCls}">${slot.bull_pct}%</span></div>
+      <div class="now-stat-row"><span class="lbl">Move %</span><span class="val">${slot.avg_move_pct}%</span></div>
+      ${usedFallback ? `<div style="font-size:10px;opacity:.6;font-style:italic;">(no ${n.day_name} samples · showing all-DOW avg)</div>` : ''}
+    `;
+  } else {
+    statsEl.innerHTML = `<div style="opacity:.7;font-size:13px;">No historical data for this hour.</div>`;
+  }
+  document.getElementById('conf-label').textContent = slot.confidence + '% · ' + slot.count + ' samples';
+  document.getElementById('conf-fill').style.width = slot.confidence + '%';
+
+  // Next high-vol
+  const nv = document.getElementById('next-vol');
+  if (NOW.next_high_vol) {
+    const v = NOW.next_high_vol;
+    const eta = v.offset_h === 1 ? 'in ~1h' : `in ${v.offset_h}h`;
+    nv.innerHTML = `
+      <div class="head">${v.session} · ${v.day_name}</div>
+      <div class="countdown">${fmtHour(v.hour)} <span style="font-size:13px;opacity:.7;">${eta}</span></div>
+      <div class="desc">Expected range <b>${v.avg_range.toFixed(2)} pts</b> · bull ${v.bull_pct}% · n=${v.count}</div>
+    `;
+  } else {
+    nv.innerHTML = `<div class="head">No high-vol window soon</div>
+      <div class="countdown" style="font-size:14px;opacity:.7;">Market quiet or closed</div>
+      <div class="desc">Next 8h all below 1.15× avg range</div>`;
+  }
+
+  // Regime banner
+  const r = NOW.regime;
+  const banner = document.getElementById('regime-banner');
+  banner.className = 'regime-banner';
+  if (r.delta_pct != null) {
+    if (r.delta_pct > 25) {
+      banner.classList.add('hot');
+      banner.innerHTML = `<span class="icon">🔥</span><div>
+        <b>HOT REGIME</b> — Last ${r.lookback_days}d range is
+        <span class="delta">+${r.delta_pct}%</span> vs historical
+        (${r.recent_avg_range} vs ${r.historical_avg_range} pts).
+        Expect bigger moves and wider stops.</div>`;
+    } else if (r.delta_pct < -15) {
+      banner.classList.add('cool');
+      banner.innerHTML = `<span class="icon">❄️</span><div>
+        <b>COOL REGIME</b> — Last ${r.lookback_days}d range is
+        <span class="delta">${r.delta_pct}%</span> vs historical
+        (${r.recent_avg_range} vs ${r.historical_avg_range} pts).
+        Tighter ranges — scale targets down.</div>`;
+    } else {
+      banner.classList.add('normal');
+      banner.innerHTML = `<span class="icon">📊</span><div>
+        <b>NORMAL REGIME</b> — Last ${r.lookback_days}d range matches historical
+        (${r.recent_avg_range} vs ${r.historical_avg_range} pts, Δ ${r.delta_pct >= 0 ? '+' : ''}${r.delta_pct}%).</div>`;
+    }
+  }
+
+  // Forecast strip
+  renderForecast();
+}
+
+function renderForecast() {
+  const strip = document.getElementById('forecast-strip');
+  const f = NOW.today_forecast;
+  if (!f || f.length === 0) {
+    strip.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:20px;">No hours left today.</div>';
+    return;
+  }
+  strip.innerHTML = f.map(h => {
+    if (h.count === 0) {
+      return `<div class="forecast-hour${h.is_now ? ' now' : ''}">
+        <span class="session-tag" style="opacity:.5;">${h.session.slice(0,6)}</span>
+        <span class="fh-time">${fmtHour(h.hour)}</span>
+        <span class="fh-range" style="opacity:.4;">—</span>
+        <span class="fh-lbl">no data</span>
+      </div>`;
+    }
+    const biasCls = h.bull_pct > 55 ? 'bull' : (h.bull_pct < 45 ? 'bear' : 'neutral');
+    const biasColor = h.bull_pct > 55 ? '#2fb96d' : (h.bull_pct < 45 ? '#ff5a6b' : '#9a9aa6');
+    const sessColor = SESSION_COLORS[h.session]?.line || '#9a9aa6';
+    return `<div class="forecast-hour${h.is_now ? ' now' : ''}" title="${h.session} · n=${h.count} · conf ${h.confidence}%">
+      <span class="session-tag" style="color:${h.is_now ? '#fff' : sessColor};">${h.session.replace('London-NY OVL','OVL').slice(0,4)}</span>
+      <span class="fh-time">${fmtHour(h.hour)}</span>
+      <span class="fh-range">${h.avg_range.toFixed(1)}</span>
+      <span class="fh-lbl">${h.bull_pct}% bull</span>
+      <div class="bias-bar fh"><span style="width:${h.bull_pct}%;background:${biasColor};"></span></div>
+    </div>`;
+  }).join('');
 }
 
 function buildKpis() {
@@ -713,17 +1037,40 @@ function drawOverview() {
   document.getElementById('best-slot-day').textContent = top.day_name.toUpperCase();
   document.getElementById('best-slot-hour').textContent = fmtHour(top.hour);
 
-  // Hourly bar chart
+  // Hourly bar chart — historical bars + recent line overlay + session bands
   const maxR = Math.max(...bh.map(x => x.avg_range));
-  Plotly.newPlot('ch-overview-hour', [{
+  const curHour = NOW?.now?.hour;
+  const traces = [{
+    name: 'Historical',
     x: bh.map(r => fmtHour(r.hour)),
     y: bh.map(r => r.avg_range),
     type: 'bar',
     marker: {
-      color: bh.map(r => r.avg_range === maxR ? '#2f5fff' : '#a8bcff'),
+      color: bh.map(r => r.hour === curHour ? '#ff5a6b' : (r.avg_range === maxR ? '#2f5fff' : '#a8bcff')),
     },
-    hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
-  }], { ...LAYOUT_BASE, xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS } }, CFG);
+    hovertemplate: '%{x}<br>Historical: %{y:.2f} pts<extra></extra>',
+  }];
+  if (NOW?.recent_by_hour?.length) {
+    const recentMap = Object.fromEntries(NOW.recent_by_hour.map(r => [r.hour, r.avg_range]));
+    traces.push({
+      name: `Last ${NOW.regime.lookback_days}d`,
+      x: bh.map(r => fmtHour(r.hour)),
+      y: bh.map(r => recentMap[r.hour] ?? null),
+      type: 'scatter', mode: 'lines+markers',
+      line: { color: '#ff5a6b', width: 2 },
+      marker: { color: '#ff5a6b', size: 5 },
+      hovertemplate: '%{x}<br>Recent: %{y:.2f} pts<extra></extra>',
+    });
+  }
+  Plotly.newPlot('ch-overview-hour', traces, {
+    ...LAYOUT_BASE,
+    xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
+    shapes: sessionShapes(),
+    annotations: sessionAnnotations(),
+    showlegend: true,
+    legend: { orientation: 'h', y: -0.25, font: { size: 10 } },
+    margin: { t: 24, r: 10, b: 60, l: 48 },
+  }, CFG);
 
   // Daily line chart
   Plotly.newPlot('ch-overview-day', [{
@@ -735,15 +1082,24 @@ function drawOverview() {
     hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
   }], LAYOUT_BASE, CFG);
 
-  // Bias chart
+  // Bias chart with session bands
   Plotly.newPlot('ch-bias', [{
     x: bh.map(r => fmtHour(r.hour)),
     y: bh.map(r => r.bull_pct - 50),
     type: 'bar',
-    marker: { color: bh.map(r => r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b') },
+    marker: {
+      color: bh.map(r => r.hour === curHour
+        ? '#2f5fff'
+        : (r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b'))
+    },
     hovertemplate: '%{x}<br>Bull %{y:.1f}%<extra></extra>',
-  }], { ...LAYOUT_BASE, xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
-       yaxis: { ...LAYOUT_BASE.yaxis, title: { text: 'Δ from 50%', font: { size: 9 } } } }, CFG);
+  }], { ...LAYOUT_BASE,
+       xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
+       yaxis: { ...LAYOUT_BASE.yaxis, title: { text: 'Δ from 50%', font: { size: 9 } } },
+       shapes: sessionShapes(),
+       annotations: sessionAnnotations(),
+       margin: { t: 24, r: 10, b: 60, l: 48 },
+     }, CFG);
 }
 
 /* ─── Heatmap ──────────────────────────────────────────────────────── */
@@ -781,7 +1137,10 @@ function drawHourly() {
     line: { color: '#2f5fff', width: 2 },
     marker: { color: '#2f5fff', size: 6 },
     hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
-  }], { ...LAYOUT_BASE, xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS } }, CFG);
+  }], { ...LAYOUT_BASE,
+       xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
+       shapes: sessionShapes(), annotations: sessionAnnotations(),
+       margin: { t: 24, r: 10, b: 60, l: 48 } }, CFG);
 
   Plotly.newPlot('ch-hour-bull', [{
     x: bh.map(r => fmtHour(r.hour)), y: bh.map(r => r.bull_pct),
@@ -793,8 +1152,12 @@ function drawHourly() {
     type: 'scatter', mode: 'lines',
     line: { color: '#9a9aa6', width: 1, dash: 'dot' },
     showlegend: false, hoverinfo: 'skip',
-  }], { ...LAYOUT_BASE, xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
-       yaxis: { ...LAYOUT_BASE.yaxis, range: [30, 70] }, showlegend: false }, CFG);
+  }], { ...LAYOUT_BASE,
+       xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
+       yaxis: { ...LAYOUT_BASE.yaxis, range: [30, 70] },
+       showlegend: false,
+       shapes: sessionShapes(), annotations: sessionAnnotations(),
+       margin: { t: 24, r: 10, b: 60, l: 48 } }, CFG);
 
   document.querySelector('#tbl-hour tbody').innerHTML = bh.map(r => `
     <tr>
@@ -856,6 +1219,7 @@ function drawTop() {
 }
 
 loadStats();
+setInterval(loadNowOnly, 60000);  // refresh NOW panel every minute
 </script>
 </body>
 </html>
