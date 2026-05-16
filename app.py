@@ -21,6 +21,13 @@ SESSIONS = [
     {"name": "London-NY OVL", "start": 19, "end": 23, "color": "#9a4dff"},  # killer overlap
 ]
 
+# NY session closes ~5 PM ET = 04:00 BKK (EDT) / 05:00 BKK (EST).
+# Vantage MT5 daily reset happens at midnight UTC = 07:00 BKK — NO bar is generated
+# at hour 7 (zero rows in dataset). Dead zone is effectively 04:00–07:59 BKK.
+THIN_HOURS    = {4, 5, 6}    # BKK hours — NY close / illiquid pre-reset
+DEAD_HOURS    = {7}           # BKK hours — broker reset, bar literally missing
+MON_GAP_HOURS = {8}          # BKK hour on Monday (dow=0) — first bar after weekend
+
 
 def load_data():
     if not os.path.exists(DATA_PATH):
@@ -45,6 +52,14 @@ def enrich(df):
     df["bull"] = (df["close"] > df["open"]).astype(int)
     df["bear"] = (df["close"] < df["open"]).astype(int)
     df["direction_pct"] = (df["close"] - df["open"]) / df["open"] * 100  # signed
+
+    # Mark unreliable bars so callers can filter or flag them.
+    # thin_market: NY close / broker rollover (4–5 AM BKK) — spreads widen, fills are bad.
+    # monday_gap:  first bars of the week (Mon 5–6 AM BKK) include the weekend gap.
+    df["thin_market"] = df["hour"].isin(THIN_HOURS)
+    df["dead_hour"]   = df["hour"].isin(DEAD_HOURS)   # broker reset — bar never generated
+    df["monday_gap"]  = (df["dow"] == 0) & df["hour"].isin(MON_GAP_HOURS)
+    df["skip_bar"]    = df["thin_market"] | df["monday_gap"]
     return df
 
 
@@ -74,6 +89,7 @@ def confidence(n):
 
 def compute_stats(df_enriched):
     df = df_enriched
+    df_clean = df[~df["skip_bar"]]   # exclude thin market + Monday gap bars
 
     by_hour = (
         df.groupby("hour")
@@ -87,6 +103,21 @@ def compute_stats(df_enriched):
         .reset_index()
     )
     by_hour["bull_pct"] = (by_hour["bull_pct"] * 100).round(1)
+    by_hour["thin_market"] = by_hour["hour"].isin(THIN_HOURS)
+    by_hour["monday_gap_included"] = by_hour["hour"].isin(MON_GAP_HOURS)
+
+    # Clean stats (thin+gap bars removed) — more tradeable picture
+    by_hour_clean = (
+        df_clean.groupby("hour")
+        .agg(
+            avg_range_clean=("range", "mean"),
+            bull_pct_clean=("bull", "mean"),
+            count_clean=("range", "count"),
+        )
+        .reset_index()
+    )
+    by_hour_clean["bull_pct_clean"] = (by_hour_clean["bull_pct_clean"] * 100).round(1)
+    by_hour = by_hour.merge(by_hour_clean, on="hour", how="left")
     by_hour = by_hour.round(5)
 
     by_day = (
@@ -124,8 +155,9 @@ def compute_stats(df_enriched):
         rows = p.round(4).values.tolist()
         return [[None if isinstance(v, float) and math.isnan(v) else v for v in row] for row in rows]
 
+    # Top slots exclude thin-market and Monday-gap bars entirely
     hd = (
-        df.groupby(["dow", "hour"])
+        df_clean.groupby(["dow", "hour"])
         .agg(avg_range=("range", "mean"), avg_move_pct=("move_pct", "mean"),
              bull_pct=("bull", "mean"), count=("range", "count"))
         .reset_index()
@@ -162,9 +194,16 @@ def compute_now(df, lookback_days=30):
     last_price = float(df.iloc[-1]["close"])
     last_bar_time = df.iloc[-1]["local_time"]
 
+    is_thin   = cur_hour in THIN_HOURS
+    is_dead   = cur_hour in DEAD_HOURS
+    is_mongap = cur_dow == 0 and cur_hour in MON_GAP_HOURS
+    is_skip   = is_thin or is_dead or is_mongap
+
     # ── This hour historically (this DOW + this hour) ──────────────────
-    same_slot = df[(df["dow"] == cur_dow) & (df["hour"] == cur_hour)]
-    all_this_hour = df[df["hour"] == cur_hour]
+    # Always use clean data (skip thin/gap bars) for actionable stats
+    df_clean = df[~df["skip_bar"]]
+    same_slot     = df_clean[(df_clean["dow"] == cur_dow) & (df_clean["hour"] == cur_hour)]
+    all_this_hour = df_clean[df_clean["hour"] == cur_hour]
 
     def slot_stats(sub):
         if len(sub) == 0:
@@ -184,11 +223,29 @@ def compute_now(df, lookback_days=30):
     # ── Today's remaining-hours forecast ───────────────────────────────
     today_forecast = []
     for h in range(cur_hour, 24):
-        sub = df[(df["dow"] == cur_dow) & (df["hour"] == h)]
+        h_thin   = h in THIN_HOURS
+        h_dead   = h in DEAD_HOURS
+        h_mongap = cur_dow == 0 and h in MON_GAP_HOURS
+        h_skip   = h_thin or h_mongap
+        if h_dead:
+            today_forecast.append({
+                "hour": h, "session": "Reset", "is_now": (h == cur_hour),
+                "thin_market": False, "dead_hour": True, "monday_gap": False,
+                "skip_bar": False, "avg_range": None, "bull_pct": None,
+                "avg_move_pct": None, "count": 0, "confidence": 0,
+            })
+            continue
+        # Use clean data for tradeable hours; raw for thin/gap so count is visible
+        src = df if h_skip else df_clean
+        sub = src[(src["dow"] == cur_dow) & (src["hour"] == h)]
         s = slot_stats(sub)
         s["hour"] = h
         s["session"] = session_for(h)
         s["is_now"] = (h == cur_hour)
+        s["thin_market"] = h_thin
+        s["dead_hour"]   = False
+        s["monday_gap"]  = h_mongap
+        s["skip_bar"]    = h_skip
         today_forecast.append(s)
 
     # ── Next high-volatility window (next 8h) ──────────────────────────
@@ -270,6 +327,20 @@ def compute_now(df, lookback_days=30):
             "minutes_to_next_hour": int(minutes_to_next),
             "last_price": round(last_price, 4),
             "last_bar_time": str(last_bar_time),
+            "thin_market": bool(is_thin),
+            "dead_hour":   bool(is_dead),
+            "monday_gap":  bool(is_mongap),
+            "skip_bar":    bool(is_skip),
+        },
+        "market_flags": {
+            "thin_hours":    sorted(THIN_HOURS),
+            "dead_hours":    sorted(DEAD_HOURS),
+            "mon_gap_hours": sorted(MON_GAP_HOURS),
+            "note": (
+                "thin_hours (4-6 AM BKK) = NY close / illiquid pre-reset. "
+                "dead_hours (7 AM BKK) = Vantage MT5 daily reset — no bar generated. "
+                "mon_gap_hours (8 AM BKK Mon) = first bar after weekend, gap risk."
+            ),
         },
         "this_slot": this_slot,                # same DOW + same hour history
         "this_hour_overall": this_hour_overall,  # all DOWs for this hour

@@ -841,13 +841,19 @@ function renderNow() {
     `<b>${n.day_name}</b> · ${n.bkk_time.slice(0,10)} · Last @ ${NOW.now.last_price.toLocaleString()}` +
     (NOW.today_summary ? ` · Today ${NOW.today_summary.change_pct >= 0 ? '+' : ''}${NOW.today_summary.change_pct}%` : '');
 
-  // Session
+  // Session + thin-market warning
   const sessionEl = document.getElementById('now-session');
   const sessionText = document.getElementById('now-session-text');
   const isWeekend = n.day_name === 'Saturday' || (n.day_name === 'Sunday' && n.hour < 18);
   if (isWeekend) {
     sessionEl.classList.add('closed');
     sessionText.textContent = 'Market Closed · Weekend';
+  } else if (n.thin_market) {
+    sessionEl.classList.add('closed');
+    sessionText.textContent = '⚠ NY Close / Broker Rollover · Avoid Trading';
+  } else if (n.monday_gap) {
+    sessionEl.classList.add('closed');
+    sessionText.textContent = '⚠ Monday Gap Bar · Post-Weekend Open';
   } else {
     sessionEl.classList.remove('closed');
     sessionText.textContent = n.session + ' Session';
@@ -855,7 +861,16 @@ function renderNow() {
 
   // This-hour stats
   const statsEl = document.getElementById('now-stats');
-  if (slot.count > 0) {
+  if (n.skip_bar) {
+    statsEl.innerHTML = `
+      <div style="font-size:12px;opacity:.85;line-height:1.6;">
+        ${n.thin_market
+          ? '4–5 AM BKK = NY session close + broker rollover.<br>Spreads widen, liquidity dries up.<br><b>Stats here are unreliable.</b>'
+          : 'Monday 5–6 AM BKK = first bars after weekend re-open.<br>Gap risk — price may jump from Friday close.<br><b>Do not use these stats for entries.</b>'}
+      </div>`;
+    document.getElementById('conf-label').textContent = '0% — skip this hour';
+    document.getElementById('conf-fill').style.width = '0%';
+  } else if (slot.count > 0) {
     const biasCls = slot.bull_pct > 55 ? 'bull' : (slot.bull_pct < 45 ? 'bear' : '');
     statsEl.innerHTML = `
       <div class="now-stat-row"><span class="lbl">Avg Range</span><span class="val">${slot.avg_range.toFixed(2)} <span style="font-size:11px;opacity:.6;">pts</span></span></div>
@@ -863,11 +878,14 @@ function renderNow() {
       <div class="now-stat-row"><span class="lbl">Move %</span><span class="val">${slot.avg_move_pct}%</span></div>
       ${usedFallback ? `<div style="font-size:10px;opacity:.6;font-style:italic;">(no ${n.day_name} samples · showing all-DOW avg)</div>` : ''}
     `;
+    document.getElementById('conf-label').textContent = slot.confidence + '% · ' + slot.count + ' clean samples';
+    document.getElementById('conf-fill').style.width = slot.confidence + '%';
   } else {
     statsEl.innerHTML = `<div style="opacity:.7;font-size:13px;">No historical data for this hour.</div>`;
+    document.getElementById('conf-label').textContent = '0%';
+    document.getElementById('conf-fill').style.width = '0%';
   }
-  document.getElementById('conf-label').textContent = slot.confidence + '% · ' + slot.count + ' samples';
-  document.getElementById('conf-fill').style.width = slot.confidence + '%';
+  // conf bar already set inside the stats block above
 
   // Next high-vol
   const nv = document.getElementById('next-vol');
@@ -924,18 +942,44 @@ function renderForecast() {
     return;
   }
   strip.innerHTML = f.map(h => {
+    // Dead hour (broker reset) — bar is literally never generated
+    if (h.dead_hour) {
+      return `<div class="forecast-hour"
+          style="opacity:.4;border:1px dashed #ccc;background:#f5f5f8;"
+          title="Vantage MT5 broker reset — no bar produced at 7AM BKK (midnight UTC)">
+        <span class="session-tag" style="color:#999;">–</span>
+        <span class="fh-time">${fmtHour(h.hour)}</span>
+        <span class="fh-range" style="font-size:10px;color:#999;">RESET</span>
+        <span class="fh-lbl">No bar</span>
+      </div>`;
+    }
+    // Thin market or Monday gap — flag clearly, don't show tradeable stats
+    if (h.skip_bar) {
+      const label = h.thin_market ? 'NY Close' : 'Mon Gap';
+      const tooltip = h.thin_market
+        ? '4–6 AM BKK: NY close + illiquid pre-reset — avoid trading'
+        : '8 AM Mon: first bar after weekend — gap risk';
+      return `<div class="forecast-hour${h.is_now ? ' now' : ''}"
+          style="opacity:.55;border:1px dashed #e0a060;background:#fff8f0;"
+          title="${tooltip}">
+        <span class="session-tag" style="color:#c07020;border-color:#e0b080;">⚠</span>
+        <span class="fh-time">${fmtHour(h.hour)}</span>
+        <span class="fh-range" style="font-size:11px;font-weight:500;color:#c07020;">SKIP</span>
+        <span class="fh-lbl">${label}</span>
+      </div>`;
+    }
     if (h.count === 0) {
       return `<div class="forecast-hour${h.is_now ? ' now' : ''}">
-        <span class="session-tag" style="opacity:.5;">${h.session.slice(0,6)}</span>
+        <span class="session-tag" style="opacity:.5;">${h.session.slice(0,4)}</span>
         <span class="fh-time">${fmtHour(h.hour)}</span>
         <span class="fh-range" style="opacity:.4;">—</span>
         <span class="fh-lbl">no data</span>
       </div>`;
     }
-    const biasCls = h.bull_pct > 55 ? 'bull' : (h.bull_pct < 45 ? 'bear' : 'neutral');
     const biasColor = h.bull_pct > 55 ? '#2fb96d' : (h.bull_pct < 45 ? '#ff5a6b' : '#9a9aa6');
     const sessColor = SESSION_COLORS[h.session]?.line || '#9a9aa6';
-    return `<div class="forecast-hour${h.is_now ? ' now' : ''}" title="${h.session} · n=${h.count} · conf ${h.confidence}%">
+    return `<div class="forecast-hour${h.is_now ? ' now' : ''}"
+        title="${h.session} · ${h.count} clean samples · conf ${h.confidence}%">
       <span class="session-tag" style="color:${h.is_now ? '#fff' : sessColor};">${h.session.replace('London-NY OVL','OVL').slice(0,4)}</span>
       <span class="fh-time">${fmtHour(h.hour)}</span>
       <span class="fh-range">${h.avg_range.toFixed(1)}</span>
@@ -1159,16 +1203,32 @@ function drawHourly() {
        shapes: sessionShapes(), annotations: sessionAnnotations(),
        margin: { t: 24, r: 10, b: 60, l: 48 } }, CFG);
 
-  document.querySelector('#tbl-hour tbody').innerHTML = bh.map(r => `
-    <tr>
+  const THIN = new Set([4, 5, 6]);   // NY close + illiquid pre-reset
+  const DEAD = new Set([7]);          // Vantage MT5 broker reset — bar never generated
+  const MON_GAP = new Set([8]);       // Monday first bar — weekend gap risk
+  document.querySelector('#tbl-hour tbody').innerHTML = bh.map(r => {
+    const isThin = THIN.has(r.hour);
+    const isDead = DEAD.has(r.hour);
+    const isGap  = MON_GAP.has(r.hour);
+    const rowStyle = isThin ? 'background:#fff8f0;color:#a06020;' :
+                     isDead ? 'background:#f5f5f8;color:#999;' : '';
+    const warning  = isDead
+      ? `<span title="Vantage MT5 broker reset — no bar generated at 7AM BKK" style="cursor:help;">⛔ Broker Reset</span>`
+      : isThin
+        ? `<span title="4–6 AM BKK: NY close + illiquid pre-reset — unreliable" style="cursor:help;">⚠ NY Close</span>`
+        : (isGap ? `<span title="Mon 8AM: first bar after weekend — gap risk. Clean stats shown." style="cursor:help;">⚠ Mon Gap</span>` : biasBadge(r.bull_pct));
+    const cleanRange = r.avg_range_clean != null
+      ? `<span style="font-size:10px;color:#888;margin-left:4px;">(clean: ${fmt(r.avg_range_clean, 2)})</span>` : '';
+    return `<tr style="${rowStyle}">
       <td>${fmtHour(r.hour)}</td>
-      <td>${fmt(r.avg_range)}</td>
+      <td>${fmt(r.avg_range)}${cleanRange}</td>
       <td>${fmt(r.avg_body)}</td>
       <td>${fmt(r.avg_move_pct, 4)}%</td>
-      <td>${r.bull_pct}%</td>
-      <td>${r.count}</td>
-      <td>${biasBadge(r.bull_pct)}</td>
-    </tr>`).join('');
+      <td>${r.bull_pct}%${r.bull_pct_clean != null && r.bull_pct_clean !== r.bull_pct ? `<span style="font-size:10px;color:#888;margin-left:4px;">(${r.bull_pct_clean}%)</span>` : ''}</td>
+      <td>${r.count}${r.count_clean != null ? `<span style="font-size:10px;color:#888;"> / ${r.count_clean}</span>` : ''}</td>
+      <td>${warning}</td>
+    </tr>`;
+  }).join('');
 }
 
 /* ─── Daily ────────────────────────────────────────────────────────── */
