@@ -309,6 +309,61 @@
   .panel { display: none; }
   .panel.active { display: block; }
 
+  /* ───── MT5 Connection card ───── */
+  .mt5-card { padding: 18px 20px; }
+  .mt5-help { font-size: 12px; color: #555; line-height: 1.6; margin: 8px 0 16px; }
+  .mt5-help b { color: var(--blue); }
+  .mt5-row { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .mt5-row > label { font-size: 11px; font-weight: 600; color: #555; letter-spacing: 0.3px; text-transform: uppercase; }
+  .mt5-input {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: inherit; font-size: 13px; color: #1a1a1a; background: #fff;
+  }
+  .mt5-input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-soft); }
+  .mt5-row-help { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .mt5-row-help code { background: #f1f2f5; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+  .mt5-grid { display: grid; grid-template-columns: 1.2fr 1fr 2fr; gap: 14px; margin-bottom: 14px; }
+  .mt5-bars-line { display: flex; gap: 8px; align-items: stretch; }
+  .mt5-bars-line > .mt5-input { flex: 1; min-width: 0; }
+  .mt5-bars-line > .mt5-date  { flex: 0 0 140px; }
+  .mt5-max-btn { white-space: nowrap; padding: 7px 14px; font-weight: 600; letter-spacing: 0.5px; }
+  .mt5-detect, .mt5-test-line { display: flex; gap: 10px; align-items: center; }
+  .mt5-detect-info, .mt5-test-info { font-size: 11px; color: var(--muted); }
+  .mt5-detect-list {
+    display: flex; flex-direction: column; gap: 5px; margin-top: 6px;
+  }
+  .mt5-detect-item {
+    padding: 8px 11px; border: 1px solid var(--border); border-radius: 7px;
+    background: #fafbfd; font-size: 12px; cursor: pointer; transition: all .12s;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .mt5-detect-item:hover { border-color: var(--blue); background: var(--blue-soft); }
+  .mt5-detect-item .di-name { font-weight: 600; color: #222; }
+  .mt5-detect-item .di-path { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; }
+  .mt5-actions { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .mt5-go {
+    padding: 9px 18px; border-radius: 8px; border: none; background: var(--blue);
+    color: #fff; cursor: pointer; font-family: inherit; font-size: 12px;
+    font-weight: 600; letter-spacing: 0.4px;
+  }
+  .mt5-go:hover { background: #2548d8; }
+  .mt5-go:disabled, .hm-btn:disabled { opacity: 0.55; cursor: default; }
+  .mt5-feedback { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .mt5-feedback.ok    { color: var(--green); }
+  .mt5-feedback.err   { color: var(--red); }
+  .mt5-status {
+    font-size: 11px; padding: 3px 9px; border-radius: 999px;
+    background: #ffe1e4; color: var(--red); font-weight: 600; letter-spacing: 0.2px;
+  }
+  .mt5-status.ok { background: #d5f0e0; color: var(--green); }
+  .mt5-needs-setup {
+    margin-bottom: 16px; padding: 12px 16px; border-radius: 10px;
+    background: #fff5d6; border: 1px solid #f0d97a; color: #6b4f00;
+    font-size: 13px; line-height: 1.5;
+  }
+  .mt5-needs-setup b { color: #4a3700; }
+
   /* ===== NOW Hero ===== */
   .now-hero {
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #2f5fff 100%);
@@ -817,7 +872,86 @@
 
     <!-- ============ SETTINGS PANEL ============ -->
     <div class="panel" id="panel-settings">
-      <div class="card" data-help="h-settings-period">
+
+      <!-- ───── MT5 CONNECTION ───── -->
+      <div class="card mt5-card" id="mt5-card">
+        <div class="card-header">
+          <span>MT5 CONNECTION</span>
+          <span class="mt5-status" id="mt5-status-pill">— not configured</span>
+        </div>
+        <p class="mt5-help">
+          Momento needs your local MT5 terminal to fetch live bars. Set this once and click
+          <b>Save &amp; Fetch</b>. The dashboard reads only what your MT5 sends — your broker,
+          your account, your machine.
+        </p>
+
+        <!-- Row 1: detected installs -->
+        <div class="mt5-row">
+          <label>Detected MT5 terminals</label>
+          <div class="mt5-detect">
+            <button class="hm-btn" id="mt5-detect-btn" type="button">⟳ AUTO-DETECT</button>
+            <span class="mt5-detect-info" id="mt5-detect-info">Click to scan Program Files</span>
+          </div>
+          <div class="mt5-detect-list" id="mt5-detect-list"></div>
+        </div>
+
+        <!-- Row 2: path -->
+        <div class="mt5-row">
+          <label for="mt5-path">MT5 terminal path</label>
+          <input type="text" id="mt5-path" class="mt5-input"
+                 placeholder="C:\Program Files\…\terminal64.exe" spellcheck="false">
+          <div class="mt5-row-help">Full path to <code>terminal64.exe</code>. Paste it or pick from auto-detect above.</div>
+        </div>
+
+        <!-- Row 3: test + symbols -->
+        <div class="mt5-row">
+          <div class="mt5-test-line">
+            <button class="hm-btn" id="mt5-test-btn" type="button">TEST CONNECTION</button>
+            <span class="mt5-test-info" id="mt5-test-info">Tests login &amp; lists XAU/Gold symbols</span>
+          </div>
+        </div>
+
+        <!-- Row 4: symbol + bars + tz -->
+        <div class="mt5-grid">
+          <div class="mt5-row">
+            <label for="mt5-symbol">Symbol</label>
+            <input type="text" id="mt5-symbol" class="mt5-input" placeholder="XAUUSD" list="mt5-symbol-options" spellcheck="false">
+            <datalist id="mt5-symbol-options"></datalist>
+          </div>
+          <div class="mt5-row">
+            <label for="mt5-bars">Bars to fetch</label>
+            <div class="mt5-bars-line">
+              <input type="number" id="mt5-bars" class="mt5-input" min="100" max="999999" step="1000" value="50000">
+              <input type="date" id="mt5-max-from" class="mt5-input mt5-date" value="2018-01-01"
+                     title="Earliest date MAX will pull from">
+              <button class="hm-btn mt5-max-btn" id="mt5-max-btn" type="button"
+                      title="Fetch every bar from the date on the left to now (bypasses MT5's 100k chart-bar cap)">MAX</button>
+            </div>
+            <div class="mt5-row-help" id="mt5-bars-help">
+              <b>Bars</b> = tail fetch (last N bars). <b>MAX</b> = date-range fetch from the picker to now —
+              uses your broker's full history. The number returned replaces the bars value above.
+            </div>
+          </div>
+          <div class="mt5-row">
+            <label for="mt5-tz">Broker timezone</label>
+            <select id="mt5-tz" class="mt5-input">
+              <option value="0">UTC+0</option>
+              <option value="2">UTC+2 (EU brokers)</option>
+              <option value="3" selected>UTC+3 (most common — Vantage, IC, Pepperstone)</option>
+              <option value="-5">UTC-5 (NY brokers)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Row 5: actions -->
+        <div class="mt5-actions">
+          <button class="hm-btn"   id="mt5-save-btn"      type="button">SAVE</button>
+          <button class="mt5-go"   id="mt5-save-fetch-btn" type="button">SAVE &amp; FETCH NOW</button>
+          <span class="mt5-feedback" id="mt5-feedback"></span>
+        </div>
+      </div>
+
+      <div class="card" data-help="h-settings-period" style="margin-top:12px;">
         <div class="card-header"><span>ANALYSIS PERIOD</span><span style="font-size:11px;color:var(--muted);" id="set-info">—</span></div>
         <p style="font-size:12px;color:#555;margin:8px 0 14px;line-height:1.6;">
           Filter the historical window used by Heatmap, By Hour, By Day, and Top Slots.
@@ -2305,6 +2439,283 @@ document.addEventListener('click', e => {
   if (lb) { applyLookback(parseInt(lb.dataset.lb, 10)); return; }
 });
 
+/* ─── MT5 Connection settings ────────────────────────────────────────── */
+let MT5_CONFIG = null;
+
+function setMt5Feedback(msg, kind) {
+  const el = document.getElementById('mt5-feedback');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.classList.remove('ok', 'err');
+  if (kind) el.classList.add(kind);
+}
+
+function setMt5StatusPill(cfg) {
+  const pill = document.getElementById('mt5-status-pill');
+  if (!pill) return;
+  if (cfg && cfg.configured && cfg.data_file_exists) {
+    pill.textContent = '✓ configured';
+    pill.classList.add('ok');
+  } else if (cfg && cfg.configured) {
+    pill.textContent = 'configured · no data yet';
+    pill.classList.remove('ok');
+  } else {
+    pill.textContent = '— not configured';
+    pill.classList.remove('ok');
+  }
+}
+
+async function loadMt5Config() {
+  try {
+    const r = await fetch('/api/config');
+    const cfg = await r.json();
+    MT5_CONFIG = cfg;
+    document.getElementById('mt5-path').value     = cfg.mt5_path || '';
+    document.getElementById('mt5-symbol').value   = cfg.symbol   || '';
+    document.getElementById('mt5-bars').value     = cfg.bars     || 50000;
+    document.getElementById('mt5-max-from').value = cfg.max_history_from || '2018-01-01';
+    const tzSel = document.getElementById('mt5-tz');
+    tzSel.value = String(cfg.broker_utc_offset ?? 3);
+    setMt5StatusPill(cfg);
+    renderFirstRunBanner(cfg);
+  } catch(e) {
+    setMt5Feedback('Failed to load config: ' + e.message, 'err');
+  }
+}
+
+async function mt5Detect() {
+  const btn = document.getElementById('mt5-detect-btn');
+  const info = document.getElementById('mt5-detect-info');
+  const list = document.getElementById('mt5-detect-list');
+  btn.disabled = true;
+  info.textContent = 'Scanning…';
+  list.innerHTML = '';
+  try {
+    const r = await fetch('/api/mt5/detect');
+    const j = await r.json();
+    const installs = j.installations || [];
+    if (installs.length === 0) {
+      info.textContent = 'No MT5 terminal found in Program Files. Paste a path below.';
+    } else {
+      info.textContent = `Found ${installs.length} installation${installs.length>1?'s':''}.`;
+      list.innerHTML = installs.map(i => `
+        <div class="mt5-detect-item" data-path="${i.path.replace(/"/g,'&quot;')}">
+          <span class="di-name">${i.name}</span>
+          <span class="di-path">${i.path}</span>
+        </div>`).join('');
+      list.querySelectorAll('.mt5-detect-item').forEach(el => {
+        el.addEventListener('click', () => {
+          document.getElementById('mt5-path').value = el.dataset.path;
+          setMt5Feedback('Path selected — click TEST CONNECTION to verify.', 'ok');
+        });
+      });
+    }
+  } catch(e) {
+    info.textContent = 'Detect failed: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function mt5Test() {
+  const path = document.getElementById('mt5-path').value.trim();
+  if (!path) { setMt5Feedback('Enter or pick an MT5 path first.', 'err'); return; }
+  const btn = document.getElementById('mt5-test-btn');
+  btn.disabled = true;
+  setMt5Feedback('Connecting to MT5…');
+  try {
+    const r = await fetch('/api/mt5/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) {
+      setMt5Feedback('✗ ' + (j.error || 'unknown error'), 'err');
+      return;
+    }
+    // Populate symbols datalist
+    const dl = document.getElementById('mt5-symbol-options');
+    dl.innerHTML = (j.symbols || []).map(s => `<option value="${s}">`).join('');
+    // Auto-fill symbol if empty: prefer XAUUSD, XAUUSD.sc, or first
+    const cur = document.getElementById('mt5-symbol').value.trim();
+    if (!cur && j.symbols && j.symbols.length) {
+      const prefer = j.symbols.find(s => /^XAUUSD$/i.test(s))
+                  || j.symbols.find(s => /^XAUUSD\./i.test(s))
+                  || j.symbols[0];
+      document.getElementById('mt5-symbol').value = prefer;
+    }
+    const acct = j.account ? ` · login ${j.account.login} @ ${j.account.server}` : '';
+    setMt5Feedback(`✓ Connected${acct} · ${(j.symbols||[]).length} gold symbol(s) found`, 'ok');
+  } catch(e) {
+    setMt5Feedback('✗ Test failed: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function collectMt5Form() {
+  return {
+    mt5_path:          document.getElementById('mt5-path').value.trim(),
+    symbol:            document.getElementById('mt5-symbol').value.trim(),
+    bars:              parseInt(document.getElementById('mt5-bars').value, 10) || 50000,
+    broker_utc_offset: parseInt(document.getElementById('mt5-tz').value, 10),
+  };
+}
+
+async function mt5Save(thenFetch) {
+  const body = collectMt5Form();
+  if (!body.mt5_path) { setMt5Feedback('Enter an MT5 path.', 'err'); return false; }
+  if (!body.symbol)   { setMt5Feedback('Enter a symbol.', 'err'); return false; }
+  setMt5Feedback('Saving…');
+  try {
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const cfg = await r.json();
+    if (!r.ok) { setMt5Feedback('✗ Save failed: ' + (cfg.error||'unknown'), 'err'); return false; }
+    MT5_CONFIG = cfg;
+    setMt5StatusPill(cfg);
+    setMt5Feedback(thenFetch ? '✓ Saved — fetching data…' : '✓ Saved.', 'ok');
+    renderFirstRunBanner(cfg);
+    return true;
+  } catch(e) {
+    setMt5Feedback('✗ Save failed: ' + e.message, 'err');
+    return false;
+  }
+}
+
+async function mt5SaveAndFetch() {
+  const saveBtn  = document.getElementById('mt5-save-btn');
+  const goBtn    = document.getElementById('mt5-save-fetch-btn');
+  saveBtn.disabled = true; goBtn.disabled = true;
+  try {
+    const saved = await mt5Save(true);
+    if (!saved) return;
+    // Trigger the existing refresh pipeline (which now reads config.json)
+    await refreshData();
+    setMt5Feedback('✓ Saved & fetched — dashboard ready.', 'ok');
+    // Re-pull config so data_file_exists reflects the new file
+    await loadMt5Config();
+  } finally {
+    saveBtn.disabled = false; goBtn.disabled = false;
+  }
+}
+
+async function mt5FetchMax() {
+  const maxBtn  = document.getElementById('mt5-max-btn');
+  const saveBtn = document.getElementById('mt5-save-btn');
+  const goBtn   = document.getElementById('mt5-save-fetch-btn');
+  const barsInp = document.getElementById('mt5-bars');
+  const fromInp = document.getElementById('mt5-max-from');
+  const help    = document.getElementById('mt5-bars-help');
+
+  // Validation
+  const path     = document.getElementById('mt5-path').value.trim();
+  const symbol   = document.getElementById('mt5-symbol').value.trim();
+  const fromDate = (fromInp.value || '').trim();
+  if (!path || !symbol) {
+    setMt5Feedback('Pick a MT5 path and symbol before fetching MAX.', 'err');
+    return;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+    setMt5Feedback('Pick an earliest date (YYYY-MM-DD) before fetching MAX.', 'err');
+    return;
+  }
+
+  maxBtn.disabled = true; saveBtn.disabled = true; goBtn.disabled = true;
+  help.textContent = `Requesting every H1 bar from ${fromDate} to now (this can take a minute)…`;
+  setMt5Feedback('Running MAX fetch — copy_rates_range bypasses the 100k bar cap…');
+
+  try {
+    // 1) Persist the rest of the form (path / symbol / tz / earliest date)
+    const saveBody = collectMt5Form();
+    saveBody.max_history_from = fromDate;
+    const sr = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(saveBody),
+    });
+    if (!sr.ok) {
+      const j = await sr.json().catch(() => ({}));
+      setMt5Feedback('✗ Save failed: ' + (j.error || 'unknown'), 'err');
+      return;
+    }
+    // 2) Trigger MAX fetch via /api/refresh with from_date
+    const r = await fetch('/api/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_date: fromDate }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setMt5Feedback('✗ Fetch failed: ' + (j.error || 'unknown'), 'err');
+      return;
+    }
+    // 3) Read actual row count + date range from /api/stats
+    const statsRes = await fetch('/api/stats');
+    const stats    = await statsRes.json();
+    if (!statsRes.ok) {
+      setMt5Feedback('✗ Stats reload failed: ' + (stats.error || 'unknown'), 'err');
+      return;
+    }
+    const actual = stats?.meta?.bars || 0;
+    const fromTs = stats?.meta?.from?.slice(0, 10) || fromDate;
+    const toTs   = stats?.meta?.to?.slice(0, 10)   || '';
+    barsInp.value = actual;
+    help.textContent = `Fetched ${actual.toLocaleString()} bars — ${fromTs} → ${toTs} (broker's full history from ${fromDate}).`;
+    // 4) Persist the actual count back to config
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bars: actual }),
+    });
+    // 5) Reload the dashboard
+    DATA = stats;
+    await loadNowOnly();
+    renderAll();
+    await loadMt5Config();
+    setMt5Feedback(`✓ Fetched ${actual.toLocaleString()} bars from ${fromTs}.`, 'ok');
+  } catch(e) {
+    setMt5Feedback('✗ MAX fetch failed: ' + e.message, 'err');
+  } finally {
+    maxBtn.disabled = false; saveBtn.disabled = false; goBtn.disabled = false;
+  }
+}
+
+function renderFirstRunBanner(cfg) {
+  // If config has been saved and a CSV exists, hide any setup banner.
+  const main = document.querySelector('.main');
+  let banner = document.getElementById('mt5-needs-setup');
+  const needSetup = !(cfg && cfg.configured && cfg.data_file_exists);
+  if (!needSetup) {
+    if (banner) banner.remove();
+    return;
+  }
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'mt5-needs-setup';
+    banner.className = 'mt5-needs-setup';
+    banner.innerHTML = `
+      <b>Welcome to Momento.</b> No MT5 data yet — open <b>⚙ Settings</b>,
+      pick your MT5 terminal, and click <b>Save &amp; Fetch Now</b>.
+      <span style="float:right;cursor:pointer;font-weight:600;" onclick="setTabByName('settings')">Open Settings →</span>
+    `;
+    main.insertBefore(banner, main.children[1]);   // after topbar
+  }
+}
+
+// Wire MT5 card buttons
+document.addEventListener('click', e => {
+  if (e.target.closest('#mt5-detect-btn'))     { mt5Detect();        return; }
+  if (e.target.closest('#mt5-test-btn'))       { mt5Test();          return; }
+  if (e.target.closest('#mt5-save-btn'))       { mt5Save(false);     return; }
+  if (e.target.closest('#mt5-save-fetch-btn')) { mt5SaveAndFetch();  return; }
+  if (e.target.closest('#mt5-max-btn'))        { mt5FetchMax();      return; }
+});
+
 /* ─── Overview ─────────────────────────────────────────────────────── */
 function drawOverview() {
   const bh = DATA.by_hour;
@@ -2761,7 +3172,15 @@ function drawTop() {
     </tr>`).join('');
 }
 
-loadStats();
+// Load MT5 config first so the first-run banner / Settings pre-fill on initial paint.
+loadMt5Config().then(() => {
+  // If user hasn't configured yet, jump them straight to Settings and don't bother
+  // trying to load stats (it'll just error out).
+  if (MT5_CONFIG && !(MT5_CONFIG.configured && MT5_CONFIG.data_file_exists)) {
+    setTabByName('settings');
+  }
+  loadStats();
+});
 setInterval(loadNowOnly, 60000);  // refresh NOW panel every minute
 
 // Auto-refresh from MT5 every 60s (silent; toggle in topbar)

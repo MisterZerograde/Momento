@@ -1,0 +1,8 @@
+{
+  "mt5_path": "C:\\Program Files\\MetaTrader 5\\terminal64.exe",
+  "symbol": "XAUUSD",
+  "bars": 51164,
+  "broker_utc_offset": 3,
+  "broker_name": "Vantage",
+  "configured": true
+}

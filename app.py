@@ -1,8 +1,13 @@
-import os, json, math
+import os, json, math, threading
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 from flask import Flask, jsonify, render_template, request
+
+from config_io import (
+    load_config, save_config, broker_tz_string,
+    market_hours_for_tz, detect_mt5_installations,
+)
 
 
 def _nan_to_null(records):
@@ -16,12 +21,14 @@ def _nan_to_null(records):
     return cleaned
 
 app = Flask(__name__)
+_mt5_lock = threading.Lock()   # serialize in-process MT5 calls
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "xauusd_1h.csv")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 BKK = "Asia/Bangkok"
+LOCAL_UTC_OFFSET = 7   # viewer timezone — currently hardcoded to BKK
 
 # Trading sessions (BKK / UTC+7). XAUUSD is most active during overlaps.
 # Asia: 06–15  London: 14–23  NY: 19–04
@@ -32,27 +39,33 @@ SESSIONS = [
     {"name": "London-NY OVL", "start": 19, "end": 23, "color": "#9a4dff"},  # killer overlap
 ]
 
-# Vantage MT5 server runs UTC+3. Daily reset at broker midnight (00:00 UTC+3) = 04:00 BKK.
-# No bar is generated at hour 4 (zero rows in dataset).
-THIN_HOURS    = {2, 3}    # BKK hours — NY close / illiquid pre-reset
-DEAD_HOURS    = {4}       # BKK hours — broker reset, bar literally missing
-MON_GAP_HOURS = {5}       # BKK hour on Monday (dow=0) — first bar after weekend
+
+def current_market_hours():
+    """Return (thin, dead, mon_gap) sets of BKK hours based on current config."""
+    cfg = load_config()
+    return market_hours_for_tz(cfg["broker_utc_offset"], LOCAL_UTC_OFFSET)
 
 
 def load_data(days=None):
     if not os.path.exists(DATA_PATH):
-        return None, "Data file not found. Run fetch_data.py first."
+        return None, "Data file not found. Configure MT5 in Settings and click REFRESH MT5."
+    cfg = load_config()
+    tz  = broker_tz_string(cfg["broker_utc_offset"])
     df = pd.read_csv(DATA_PATH, parse_dates=["time"])
-    # Vantage MT5 server runs UTC+3. Strip any tz label and re-apply UTC+3.
-    df["time"] = df["time"].dt.tz_localize(None).dt.tz_localize("Etc/GMT-3")
+    # Strip any tz label and re-apply the broker's tz (config-driven).
+    df["time"] = df["time"].dt.tz_localize(None).dt.tz_localize(tz)
     if days and days > 0:
         cutoff = df["time"].max() - pd.Timedelta(days=days)
         df = df[df["time"] >= cutoff].reset_index(drop=True)
     return df, None
 
 
-def enrich(df):
-    """Add derived columns used everywhere."""
+def enrich(df, market_hours=None):
+    """Add derived columns used everywhere. market_hours = (thin, dead, mon_gap)."""
+    if market_hours is None:
+        market_hours = current_market_hours()
+    thin, dead, mon_gap = market_hours
+
     df = df.copy()
     local = df["time"].dt.tz_convert(BKK)
     df["local_time"] = local
@@ -67,11 +80,11 @@ def enrich(df):
     df["direction_pct"] = (df["close"] - df["open"]) / df["open"] * 100  # signed
 
     # Mark unreliable bars so callers can filter or flag them.
-    # thin_market: NY close / broker rollover (2–3 AM BKK) — spreads widen, fills are bad.
-    # monday_gap:  first bar of the week (Mon 5 AM BKK) includes the weekend gap.
-    df["thin_market"] = df["hour"].isin(THIN_HOURS)
-    df["dead_hour"]   = df["hour"].isin(DEAD_HOURS)   # broker reset — bar never generated
-    df["monday_gap"]  = (df["dow"] == 0) & df["hour"].isin(MON_GAP_HOURS)
+    # thin_market: NY close / broker rollover — spreads widen, fills are bad.
+    # monday_gap:  first bar of the week — includes the weekend gap.
+    df["thin_market"] = df["hour"].isin(thin)
+    df["dead_hour"]   = df["hour"].isin(dead)        # broker reset — bar never generated
+    df["monday_gap"]  = (df["dow"] == 0) & df["hour"].isin(mon_gap)
     df["skip_bar"]    = df["thin_market"] | df["monday_gap"]
     return df
 
@@ -108,7 +121,11 @@ def binom_p_value(k, n, p0=0.5):
     return min(1.0, float(math.erfc(abs(z) / math.sqrt(2))))
 
 
-def compute_stats(df_enriched):
+def compute_stats(df_enriched, market_hours=None):
+    if market_hours is None:
+        market_hours = current_market_hours()
+    thin, dead, mon_gap = market_hours
+
     df = df_enriched
     df_clean = df[~df["skip_bar"]]   # exclude thin market + Monday gap bars
 
@@ -126,8 +143,8 @@ def compute_stats(df_enriched):
     )
     by_hour["bull_pct"] = (by_hour["bull_pct"] * 100).round(1)
     by_hour["bear_pct"] = (by_hour["bear_pct"] * 100).round(1)
-    by_hour["thin_market"] = by_hour["hour"].isin(THIN_HOURS)
-    by_hour["monday_gap_included"] = by_hour["hour"].isin(MON_GAP_HOURS)
+    by_hour["thin_market"] = by_hour["hour"].isin(thin)
+    by_hour["monday_gap_included"] = by_hour["hour"].isin(mon_gap)
 
     # Clean stats (thin+gap bars removed) — more tradeable picture
     by_hour_clean = (
@@ -144,7 +161,7 @@ def compute_stats(df_enriched):
     by_hour_clean["bear_pct_clean"] = (by_hour_clean["bear_pct_clean"] * 100).round(1)
     by_hour = by_hour.merge(by_hour_clean, on="hour", how="left")
     by_hour = by_hour.round(5)
-    by_hour["dead_hour"] = by_hour["hour"].isin(DEAD_HOURS)
+    by_hour["dead_hour"] = by_hour["hour"].isin(dead)
 
     by_day = (
         df.groupby("dow")
@@ -231,8 +248,12 @@ def compute_stats(df_enriched):
     }
 
 
-def compute_now(df, lookback_days=30):
+def compute_now(df, lookback_days=30, market_hours=None):
     """Trading-decision payload: current hour, today's forecast, recent regime."""
+    if market_hours is None:
+        market_hours = current_market_hours()
+    thin, dead, mon_gap = market_hours
+
     now_utc = pd.Timestamp.utcnow().tz_convert(BKK) if pd.Timestamp.utcnow().tz else \
               pd.Timestamp.utcnow().tz_localize("UTC").tz_convert(BKK)
     now = now_utc
@@ -244,9 +265,9 @@ def compute_now(df, lookback_days=30):
     last_price = float(df.iloc[-1]["close"])
     last_bar_time = df.iloc[-1]["local_time"]
 
-    is_thin    = cur_hour in THIN_HOURS
-    is_dead    = cur_hour in DEAD_HOURS
-    is_mongap  = cur_dow == 0 and cur_hour in MON_GAP_HOURS
+    is_thin    = cur_hour in thin
+    is_dead    = cur_hour in dead
+    is_mongap  = cur_dow == 0 and cur_hour in mon_gap
     is_skip    = is_thin or is_dead or is_mongap
     is_weekend = cur_dow >= 5    # Saturday=5, Sunday=6
 
@@ -275,9 +296,9 @@ def compute_now(df, lookback_days=30):
     # ── Today's remaining-hours forecast ───────────────────────────────
     today_forecast = []
     for h in range(cur_hour, 24):
-        h_thin   = h in THIN_HOURS
-        h_dead   = h in DEAD_HOURS
-        h_mongap = cur_dow == 0 and h in MON_GAP_HOURS
+        h_thin   = h in thin
+        h_dead   = h in dead
+        h_mongap = cur_dow == 0 and h in mon_gap
         h_skip   = h_thin or h_mongap
         if h_dead:
             today_forecast.append({
@@ -393,13 +414,14 @@ def compute_now(df, lookback_days=30):
             "is_weekend":  bool(is_weekend),
         },
         "market_flags": {
-            "thin_hours":    sorted(THIN_HOURS),
-            "dead_hours":    sorted(DEAD_HOURS),
-            "mon_gap_hours": sorted(MON_GAP_HOURS),
+            "thin_hours":    sorted(thin),
+            "dead_hours":    sorted(dead),
+            "mon_gap_hours": sorted(mon_gap),
             "note": (
-                "thin_hours (2-3 AM BKK) = NY close / illiquid pre-reset. "
-                "dead_hours (4 AM BKK) = Vantage MT5 daily reset — no bar generated. "
-                "mon_gap_hours (5 AM BKK Mon) = first bar after weekend, gap risk."
+                f"thin_hours (BKK) = NY close / illiquid pre-reset. "
+                f"dead_hours (BKK) = broker MT5 daily reset — no bar generated. "
+                f"mon_gap_hours (BKK Mon) = first bar after weekend, gap risk. "
+                f"Computed from broker_utc_offset."
             ),
         },
         "this_slot": this_slot,                # same DOW + same hour history
@@ -429,14 +451,17 @@ def api_stats():
     df, err = load_data(days=days or None)
     if err:
         return jsonify({"error": err}), 500
-    enr = enrich(df)
-    stats = compute_stats(enr)
+    mh = current_market_hours()
+    cfg = load_config()
+    enr = enrich(df, market_hours=mh)
+    stats = compute_stats(enr, market_hours=mh)
     stats["meta"] = {
-        "symbol": "XAUUSD.sc",
+        "symbol": cfg.get("symbol", "XAUUSD"),
         "bars": len(df),
         "from": str(df["time"].dt.tz_convert(BKK).min()),
         "to": str(df["time"].dt.tz_convert(BKK).max()),
         "tz": "BKK (UTC+7)",
+        "broker_utc_offset": cfg.get("broker_utc_offset", 3),
         "period_days": days or None,
     }
     return jsonify(stats)
@@ -451,23 +476,141 @@ def api_now():
     df, err = load_data(days=days or None)
     if err:
         return jsonify({"error": err}), 500
-    enr = enrich(df)
+    mh  = current_market_hours()
+    enr = enrich(df, market_hours=mh)
     lookback = int(request.args.get("lookback", 30))
-    payload = compute_now(enr, lookback_days=lookback)
+    payload = compute_now(enr, lookback_days=lookback, market_hours=mh)
     return jsonify(payload)
 
 
 @app.route("/api/refresh", methods=["POST"])
 def api_refresh():
-    import subprocess, sys
+    """
+    Runs fetch_data.py as a subprocess. Body may contain:
+      {from_date: "YYYY-MM-DD"}   → full history range fetch (MAX mode)
+    Otherwise uses the bars count from config.json.
+    """
+    import subprocess, sys, re
+    body = request.get_json(silent=True) or {}
     script = os.path.join(os.path.dirname(__file__), "fetch_data.py")
-    result = subprocess.run(
-        [sys.executable, script],
-        capture_output=True, text=True, timeout=120
-    )
+    cmd = [sys.executable, script]
+    from_date = (body.get("from_date") or "").strip()
+    if from_date:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", from_date):
+            return jsonify({"error": "from_date must be YYYY-MM-DD"}), 400
+        cmd.extend(["--from-date", from_date])
+    # MAX mode can pull years of history — give it more headroom than tail fetch
+    timeout = 300 if from_date else 120
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if result.returncode != 0:
         return jsonify({"error": result.stderr or result.stdout}), 500
     return jsonify({"ok": True, "output": result.stdout})
+
+
+# ─── Config & MT5 setup endpoints ──────────────────────────────────────
+@app.route("/api/config", methods=["GET"])
+def api_config_get():
+    cfg = load_config()
+    cfg["data_file_exists"] = os.path.exists(DATA_PATH)
+    return jsonify(cfg)
+
+
+@app.route("/api/config", methods=["POST"])
+def api_config_set():
+    try:
+        updates = request.get_json(force=True) or {}
+    except Exception:
+        return jsonify({"error": "Invalid JSON body"}), 400
+
+    # Light validation
+    if "bars" in updates:
+        try:
+            updates["bars"] = max(100, min(int(updates["bars"]), 200000))
+        except (TypeError, ValueError):
+            return jsonify({"error": "bars must be an integer"}), 400
+    if "broker_utc_offset" in updates:
+        try:
+            off = int(updates["broker_utc_offset"])
+            if not -12 <= off <= 14:
+                return jsonify({"error": "broker_utc_offset out of range"}), 400
+            updates["broker_utc_offset"] = off
+        except (TypeError, ValueError):
+            return jsonify({"error": "broker_utc_offset must be integer"}), 400
+    if "mt5_path" in updates and updates["mt5_path"]:
+        updates["mt5_path"] = str(updates["mt5_path"]).strip()
+    if "symbol" in updates and updates["symbol"]:
+        updates["symbol"] = str(updates["symbol"]).strip()
+
+    if updates.get("mt5_path") and updates.get("symbol"):
+        updates["configured"] = True
+
+    cfg = save_config(updates)
+    return jsonify(cfg)
+
+
+@app.route("/api/mt5/detect", methods=["GET"])
+def api_mt5_detect():
+    """Scan common Windows install locations for MT5 terminals."""
+    return jsonify({"installations": detect_mt5_installations()})
+
+
+@app.route("/api/mt5/test", methods=["POST"])
+def api_mt5_test():
+    """
+    Validate an MT5 path. Body: {path, symbol?}
+    Returns {ok, build, account?, symbols: [...]} or {error}.
+    'symbols' lists XAU/Gold candidates so the UI can populate a dropdown.
+    """
+    try:
+        body = request.get_json(force=True) or {}
+    except Exception:
+        return jsonify({"error": "Invalid JSON body"}), 400
+
+    path = (body.get("path") or "").strip()
+    if not path:
+        return jsonify({"error": "Missing 'path'"}), 400
+    if not os.path.isfile(path):
+        return jsonify({"error": f"File not found: {path}"}), 400
+
+    try:
+        import MetaTrader5 as mt5  # local import — Windows-only
+    except ImportError as e:
+        return jsonify({"error": f"MetaTrader5 package not installed: {e}"}), 500
+
+    with _mt5_lock:
+        try:
+            if not mt5.initialize(path=path):
+                err = mt5.last_error()
+                return jsonify({"error": f"MT5 init failed: {err}"}), 400
+
+            build = mt5.version()
+            info  = mt5.account_info()
+            account = None
+            if info is not None:
+                account = {
+                    "login":   getattr(info, "login", None),
+                    "server":  getattr(info, "server", None),
+                    "company": getattr(info, "company", None),
+                    "currency": getattr(info, "currency", None),
+                }
+
+            # Find gold-like symbols across the broker's catalog.
+            all_syms = mt5.symbols_get() or []
+            xau = []
+            for s in all_syms:
+                n = (s.name or "").upper()
+                if "XAU" in n or "GOLD" in n:
+                    xau.append(s.name)
+            xau.sort()
+        finally:
+            mt5.shutdown()
+
+    return jsonify({
+        "ok": True,
+        "build":   list(build) if build else None,
+        "account": account,
+        "symbols": xau[:50],   # cap to keep payload sane
+    })
 
 
 if __name__ == "__main__":
