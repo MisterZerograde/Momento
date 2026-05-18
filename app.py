@@ -4,6 +4,17 @@ import pandas as pd
 import numpy as np
 from flask import Flask, jsonify, render_template, request
 
+
+def _nan_to_null(records):
+    """Replace float NaN with None so jsonify emits null instead of invalid NaN."""
+    cleaned = []
+    for row in records:
+        cleaned.append({
+            k: (None if isinstance(v, float) and math.isnan(v) else v)
+            for k, v in row.items()
+        })
+    return cleaned
+
 app = Flask(__name__)
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "xauusd_1h.csv")
@@ -21,20 +32,22 @@ SESSIONS = [
     {"name": "London-NY OVL", "start": 19, "end": 23, "color": "#9a4dff"},  # killer overlap
 ]
 
-# NY session closes ~5 PM ET = 04:00 BKK (EDT) / 05:00 BKK (EST).
-# Vantage MT5 daily reset happens at midnight UTC = 07:00 BKK — NO bar is generated
-# at hour 7 (zero rows in dataset). Dead zone is effectively 04:00–07:59 BKK.
-THIN_HOURS    = {4, 5, 6}    # BKK hours — NY close / illiquid pre-reset
-DEAD_HOURS    = {7}           # BKK hours — broker reset, bar literally missing
-MON_GAP_HOURS = {8}          # BKK hour on Monday (dow=0) — first bar after weekend
+# Vantage MT5 server runs UTC+3. Daily reset at broker midnight (00:00 UTC+3) = 04:00 BKK.
+# No bar is generated at hour 4 (zero rows in dataset).
+THIN_HOURS    = {2, 3}    # BKK hours — NY close / illiquid pre-reset
+DEAD_HOURS    = {4}       # BKK hours — broker reset, bar literally missing
+MON_GAP_HOURS = {5}       # BKK hour on Monday (dow=0) — first bar after weekend
 
 
-def load_data():
+def load_data(days=None):
     if not os.path.exists(DATA_PATH):
         return None, "Data file not found. Run fetch_data.py first."
     df = pd.read_csv(DATA_PATH, parse_dates=["time"])
-    if df["time"].dt.tz is None:
-        df["time"] = df["time"].dt.tz_localize("UTC")
+    # Vantage MT5 server runs UTC+3. Strip any tz label and re-apply UTC+3.
+    df["time"] = df["time"].dt.tz_localize(None).dt.tz_localize("Etc/GMT-3")
+    if days and days > 0:
+        cutoff = df["time"].max() - pd.Timedelta(days=days)
+        df = df[df["time"] >= cutoff].reset_index(drop=True)
     return df, None
 
 
@@ -54,8 +67,8 @@ def enrich(df):
     df["direction_pct"] = (df["close"] - df["open"]) / df["open"] * 100  # signed
 
     # Mark unreliable bars so callers can filter or flag them.
-    # thin_market: NY close / broker rollover (4–5 AM BKK) — spreads widen, fills are bad.
-    # monday_gap:  first bars of the week (Mon 5–6 AM BKK) include the weekend gap.
+    # thin_market: NY close / broker rollover (2–3 AM BKK) — spreads widen, fills are bad.
+    # monday_gap:  first bar of the week (Mon 5 AM BKK) includes the weekend gap.
     df["thin_market"] = df["hour"].isin(THIN_HOURS)
     df["dead_hour"]   = df["hour"].isin(DEAD_HOURS)   # broker reset — bar never generated
     df["monday_gap"]  = (df["dow"] == 0) & df["hour"].isin(MON_GAP_HOURS)
@@ -68,7 +81,7 @@ def session_for(hour):
     # priority: overlap > NY > London > Asia
     if 19 <= hour <= 22:
         return "London-NY OVL"
-    if 19 <= hour or hour <= 3:
+    if hour >= 19 or hour <= 3:   # NY runs 19:00→03:00 BKK
         return "NY"
     if 14 <= hour <= 18:
         return "London"
@@ -87,6 +100,14 @@ def confidence(n):
     return 95
 
 
+def binom_p_value(k, n, p0=0.5):
+    """Two-sided z-test for proportion vs p0. No external deps (uses math.erfc)."""
+    if n < 5:
+        return 1.0
+    z = (k / n - p0) / math.sqrt(p0 * (1 - p0) / n)
+    return min(1.0, float(math.erfc(abs(z) / math.sqrt(2))))
+
+
 def compute_stats(df_enriched):
     df = df_enriched
     df_clean = df[~df["skip_bar"]]   # exclude thin market + Monday gap bars
@@ -98,11 +119,13 @@ def compute_stats(df_enriched):
             avg_body=("body", "mean"),
             avg_move_pct=("move_pct", "mean"),
             bull_pct=("bull", "mean"),
+            bear_pct=("bear", "mean"),
             count=("range", "count"),
         )
         .reset_index()
     )
     by_hour["bull_pct"] = (by_hour["bull_pct"] * 100).round(1)
+    by_hour["bear_pct"] = (by_hour["bear_pct"] * 100).round(1)
     by_hour["thin_market"] = by_hour["hour"].isin(THIN_HOURS)
     by_hour["monday_gap_included"] = by_hour["hour"].isin(MON_GAP_HOURS)
 
@@ -112,13 +135,16 @@ def compute_stats(df_enriched):
         .agg(
             avg_range_clean=("range", "mean"),
             bull_pct_clean=("bull", "mean"),
+            bear_pct_clean=("bear", "mean"),
             count_clean=("range", "count"),
         )
         .reset_index()
     )
     by_hour_clean["bull_pct_clean"] = (by_hour_clean["bull_pct_clean"] * 100).round(1)
+    by_hour_clean["bear_pct_clean"] = (by_hour_clean["bear_pct_clean"] * 100).round(1)
     by_hour = by_hour.merge(by_hour_clean, on="hour", how="left")
     by_hour = by_hour.round(5)
+    by_hour["dead_hour"] = by_hour["hour"].isin(DEAD_HOURS)
 
     by_day = (
         df.groupby("dow")
@@ -126,11 +152,13 @@ def compute_stats(df_enriched):
             avg_range=("range", "mean"),
             avg_move_pct=("move_pct", "mean"),
             bull_pct=("bull", "mean"),
+            bear_pct=("bear", "mean"),
             count=("range", "count"),
         )
         .reset_index()
     )
     by_day["bull_pct"] = (by_day["bull_pct"] * 100).round(1)
+    by_day["bear_pct"] = (by_day["bear_pct"] * 100).round(1)
     by_day["day_name"] = by_day["dow"].apply(lambda x: DAYS[x])
     by_day = by_day.round(5)
 
@@ -146,10 +174,22 @@ def compute_stats(df_enriched):
         df.groupby(["dow", "hour"])["bull"].mean()
         .unstack(level="hour").reindex(index=range(7), columns=range(24))
     ) * 100
+    pivot_bear = (
+        df.groupby(["dow", "hour"])["bear"].mean()
+        .unstack(level="hour").reindex(index=range(7), columns=range(24))
+    ) * 100
     pivot_count = (
         df.groupby(["dow", "hour"])["range"].count()
         .unstack(level="hour").reindex(index=range(7), columns=range(24))
     )
+
+    # Optimal edge score: range strength × directional bias (both must be strong)
+    # range_norm: each cell's avg range as fraction of the best cell (0→1)
+    # bias: how far bull_pct deviates from coin-flip 50% (0→1)
+    # score = range_norm × bias × 100  →  0-100 scale
+    _range_max = float(np.nanmax(pivot_range.values))
+    _bias = (pivot_bull - 50).abs() / 50
+    pivot_optimal = (pivot_range / _range_max) * _bias * 100
 
     def pivot_to_list(p):
         rows = p.round(4).values.tolist()
@@ -159,25 +199,35 @@ def compute_stats(df_enriched):
     hd = (
         df_clean.groupby(["dow", "hour"])
         .agg(avg_range=("range", "mean"), avg_move_pct=("move_pct", "mean"),
-             bull_pct=("bull", "mean"), count=("range", "count"))
+             bull_pct=("bull", "mean"), bear_pct=("bear", "mean"), count=("range", "count"))
         .reset_index()
     )
+    # p-value computed on raw proportion (before rounding) — tests H0: bull rate = 50%
+    hd["p_value"] = hd.apply(
+        lambda r: round(binom_p_value(round(float(r["bull_pct"]) * int(r["count"])), int(r["count"])), 4),
+        axis=1,
+    )
     hd["bull_pct"] = (hd["bull_pct"] * 100).round(1)
+    hd["bear_pct"] = (hd["bear_pct"] * 100).round(1)
     hd["day_name"] = hd["dow"].apply(lambda x: DAYS[x])
-    hd = hd.sort_values("avg_range", ascending=False).head(20).round(5)
+    hd = hd.sort_values("avg_range", ascending=False).round(5)
+
+    by_hour_records = _nan_to_null(by_hour.to_dict(orient="records"))
 
     return {
-        "by_hour": by_hour.to_dict(orient="records"),
-        "by_day": by_day.to_dict(orient="records"),
+        "by_hour": by_hour_records,
+        "by_day":  _nan_to_null(by_day.to_dict(orient="records")),
         "heatmap": {
             "range": pivot_to_list(pivot_range),
             "move_pct": pivot_to_list(pivot_move),
             "bull_pct": pivot_to_list(pivot_bull),
+            "bear_pct": pivot_to_list(pivot_bear),
             "count": pivot_to_list(pivot_count),
+            "optimal": pivot_to_list(pivot_optimal),
             "days": DAY_SHORT,
             "hours": list(range(24)),
         },
-        "top_slots": hd.to_dict(orient="records"),
+        "top_slots": _nan_to_null(hd.to_dict(orient="records")),
     }
 
 
@@ -194,10 +244,11 @@ def compute_now(df, lookback_days=30):
     last_price = float(df.iloc[-1]["close"])
     last_bar_time = df.iloc[-1]["local_time"]
 
-    is_thin   = cur_hour in THIN_HOURS
-    is_dead   = cur_hour in DEAD_HOURS
-    is_mongap = cur_dow == 0 and cur_hour in MON_GAP_HOURS
-    is_skip   = is_thin or is_dead or is_mongap
+    is_thin    = cur_hour in THIN_HOURS
+    is_dead    = cur_hour in DEAD_HOURS
+    is_mongap  = cur_dow == 0 and cur_hour in MON_GAP_HOURS
+    is_skip    = is_thin or is_dead or is_mongap
+    is_weekend = cur_dow >= 5    # Saturday=5, Sunday=6
 
     # ── This hour historically (this DOW + this hour) ──────────────────
     # Always use clean data (skip thin/gap bars) for actionable stats
@@ -211,6 +262,7 @@ def compute_now(df, lookback_days=30):
         return {
             "avg_range": round(float(sub["range"].mean()), 4),
             "bull_pct": round(float(sub["bull"].mean()) * 100, 1),
+            "bear_pct": round(float(sub["bear"].mean()) * 100, 1),
             "avg_move_pct": round(float(sub["move_pct"].mean()), 4),
             "max_range": round(float(sub["range"].max()), 4),
             "count": int(len(sub)),
@@ -266,6 +318,7 @@ def compute_now(df, lookback_days=30):
             })
 
     overall_avg_range = float(df["range"].mean())
+    overall_avg_move  = float(df["move_pct"].mean())
     next_high_vol = None
     for u in upcoming:
         if u["avg_range"] > overall_avg_range * 1.15:
@@ -290,13 +343,19 @@ def compute_now(df, lookback_days=30):
         .reset_index().round(5)
     )
 
+    # Use move_pct (% of price) for regime delta — absolute range is misleading because
+    # gold has doubled in price since 2022, making recent ranges look inflated vs history.
+    rec_move = float(recent["move_pct"].mean()) if len(recent) else None
     regime_vs_hist = {
-        "recent_avg_range": round(float(recent["range"].mean()), 4) if len(recent) else None,
-        "historical_avg_range": round(overall_avg_range, 4),
-        "delta_pct": round((float(recent["range"].mean()) / overall_avg_range - 1) * 100, 1)
-                     if len(recent) else None,
-        "recent_bull_pct": round(float(recent["bull"].mean()) * 100, 1) if len(recent) else None,
+        "recent_avg_range":        round(float(recent["range"].mean()), 4) if len(recent) else None,
+        "historical_avg_range":    round(overall_avg_range, 4),
+        "recent_avg_move_pct":     round(rec_move, 4) if rec_move is not None else None,
+        "historical_avg_move_pct": round(overall_avg_move, 4),
+        "delta_pct": round((rec_move / overall_avg_move - 1) * 100, 1) if rec_move else None,
+        "recent_bull_pct":     round(float(recent["bull"].mean()) * 100, 1) if len(recent) else None,
         "historical_bull_pct": round(float(df["bull"].mean()) * 100, 1),
+        "recent_bear_pct":     round(float(recent["bear"].mean()) * 100, 1) if len(recent) else None,
+        "historical_bear_pct": round(float(df["bear"].mean()) * 100, 1),
         "lookback_days": lookback_days,
         "recent_bars": int(len(recent)),
     }
@@ -331,15 +390,16 @@ def compute_now(df, lookback_days=30):
             "dead_hour":   bool(is_dead),
             "monday_gap":  bool(is_mongap),
             "skip_bar":    bool(is_skip),
+            "is_weekend":  bool(is_weekend),
         },
         "market_flags": {
             "thin_hours":    sorted(THIN_HOURS),
             "dead_hours":    sorted(DEAD_HOURS),
             "mon_gap_hours": sorted(MON_GAP_HOURS),
             "note": (
-                "thin_hours (4-6 AM BKK) = NY close / illiquid pre-reset. "
-                "dead_hours (7 AM BKK) = Vantage MT5 daily reset — no bar generated. "
-                "mon_gap_hours (8 AM BKK Mon) = first bar after weekend, gap risk."
+                "thin_hours (2-3 AM BKK) = NY close / illiquid pre-reset. "
+                "dead_hours (4 AM BKK) = Vantage MT5 daily reset — no bar generated. "
+                "mon_gap_hours (5 AM BKK Mon) = first bar after weekend, gap risk."
             ),
         },
         "this_slot": this_slot,                # same DOW + same hour history
@@ -362,7 +422,11 @@ def index():
 
 @app.route("/api/stats")
 def api_stats():
-    df, err = load_data()
+    try:
+        days = int(request.args.get("days", 0))
+    except (TypeError, ValueError):
+        days = 0
+    df, err = load_data(days=days or None)
     if err:
         return jsonify({"error": err}), 500
     enr = enrich(df)
@@ -373,13 +437,18 @@ def api_stats():
         "from": str(df["time"].dt.tz_convert(BKK).min()),
         "to": str(df["time"].dt.tz_convert(BKK).max()),
         "tz": "BKK (UTC+7)",
+        "period_days": days or None,
     }
     return jsonify(stats)
 
 
 @app.route("/api/now")
 def api_now():
-    df, err = load_data()
+    try:
+        days = int(request.args.get("days", 0))
+    except (TypeError, ValueError):
+        days = 0
+    df, err = load_data(days=days or None)
     if err:
         return jsonify({"error": err}), 500
     enr = enrich(df)

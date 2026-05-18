@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show *)",
+      "Bash(python fetch_data.py)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import pandas as pd; df=pd.read_csv\\(r'C:\\\\Users\\\\COMPUTER\\\\Desktop\\\\time data\\\\data\\\\xauusd_1h.csv'\\); print\\(len\\(df\\), 'rows'\\); print\\(df.head\\(2\\)\\)\")",
+      "Bash(python app.py)",
+      "Bash(Start-Sleep -Seconds 3)",
+      "Bash(Invoke-WebRequest -Uri \"http://localhost:5050/api/stats\" -UseBasicParsing)",
+      "Bash(Select-Object -ExpandProperty StatusCode)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:5050/api/stats\" -UseBasicParsing)",
+      "PowerShell(Start-Process \"http://localhost:5050\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(python -c \"import app; print\\('import OK'\\)\")",
+      "Bash(curl -s http://localhost:5050/api/stats -o /tmp/stats.json -w \"HTTP %{http_code}\\\\n\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:5050/ -o /tmp/idx.html -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(git --version)",
+      "Bash(curl -s -o NUL -w \"HTTP %{http_code}\\\\n\" http://127.0.0.1:5050/)",
+      "Bash(curl -s -o NUL -w \"HTTP %{http_code}\\\\n\" http://127.0.0.1:5050/api/stats)",
+      "PowerShell(Get-Process *)",
+      "Skill(update-config)"
+    ]
+  }
+}

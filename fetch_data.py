@@ -31,7 +31,7 @@ def fetch():
         sys.exit(1)
 
     df = pd.DataFrame(rates)
-    df["time"] = pd.to_datetime(df["time"], unit="s", utc=True)
+    df["time"] = pd.to_datetime(df["time"], unit="s").dt.tz_localize("Etc/GMT-3")  # Vantage server = UTC+3
     df = df[["time", "open", "high", "low", "close", "tick_volume"]]
     df.rename(columns={"tick_volume": "volume"}, inplace=True)
 

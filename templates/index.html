@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XAUUSD Timing Analyzer</title>
+<title>Momento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -23,24 +23,19 @@
   }
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    min-height: 100vh;
-    padding: 24px;
-    background:
-      radial-gradient(ellipse at 80% 10%, #ffffff 0%, transparent 40%),
-      radial-gradient(ellipse at 20% 90%, #c8d6f0 0%, transparent 50%),
-      linear-gradient(135deg, #8aa9e0 0%, #6e8fc8 50%, #b8c8e8 100%);
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    background: var(--bg-page);
     color: var(--text);
     display: flex;
-    justify-content: center;
-    background-attachment: fixed;
+    overflow: hidden;
   }
 
   .dashboard {
     width: 100%;
-    max-width: 1280px;
+    height: 100vh;
     background: var(--bg-page);
-    border-radius: 14px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.18);
     display: grid;
     grid-template-columns: 215px 1fr;
     overflow: hidden;
@@ -53,6 +48,7 @@
     padding: 22px 16px;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
     justify-content: space-between;
     min-height: 760px;
   }
@@ -139,6 +135,7 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    overflow-y: auto;
   }
   .topbar {
     display: flex;
@@ -179,6 +176,38 @@
   .refresh-btn.loading .spinner { display: inline-block; }
   .refresh-btn.loading .btn-label { display: none; }
 
+  /* Auto-refresh controls */
+  .topbar-actions { display: flex; align-items: center; gap: 10px; }
+  .auto-status {
+    font-size: 11px; color: var(--muted);
+    letter-spacing: 0; white-space: nowrap;
+    min-width: 92px; text-align: right;
+  }
+  .auto-status.err { color: #ff5a6b; font-weight: 600; }
+  .auto-toggle {
+    background: transparent;
+    border: 1.5px solid var(--border);
+    color: var(--muted);
+    padding: 6px 12px; border-radius: 16px;
+    cursor: pointer; font-family: inherit; font-size: 11px;
+    font-weight: 600; letter-spacing: 0.5px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: border-color .15s, color .15s;
+  }
+  .auto-toggle:hover { border-color: #999; color: #555; }
+  .auto-toggle .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #c4c4c4; transition: background .15s;
+  }
+  .auto-toggle.on { border-color: #2fb96d; color: #2fb96d; }
+  .auto-toggle.on:hover { border-color: #259256; color: #259256; }
+  .auto-toggle.on .dot {
+    background: #2fb96d;
+    box-shadow: 0 0 6px rgba(47,185,109,.7);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
   /* Grid */
   .grid {
     display: grid;
@@ -193,38 +222,12 @@
     position: relative;
   }
 
-  /* KPI cards */
-  .kpi { display: flex; flex-direction: column; gap: 18px; min-height: 120px; }
-  .kpi-header { display: flex; justify-content: space-between; align-items: flex-start; }
-  .pill {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0;
-    padding: 4px 12px;
-    border: 1px solid #d0d0da;
-    border-radius: 20px;
-    background: #fff;
-    color: #444;
-  }
-  .pill.active-pill { color: var(--blue); border-color: var(--blue-light); }
-  .pill.bull { color: var(--green); border-color: #b8e6cc; }
-  .pill.bear { color: var(--red); border-color: #ffc8cc; }
-  .arrow-up {
-    width: 24px; height: 24px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--blue);
-    font-size: 15px;
-  }
-  .kpi-label {
-    font-size: 11px; font-weight: 500; letter-spacing: 0; color: #666;
-    display: flex; justify-content: space-between;
-  }
-  .kpi-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px; }
-  .kpi-value { font-size: 26px; font-weight: 300; letter-spacing: -0.5px; }
+  /* Stat tiles */
+  .stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-tile { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+  .st-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .st-val { font-size: 28px; font-weight: 300; letter-spacing: -0.5px; line-height: 1; }
+  .st-sub { font-size: 12px; color: var(--muted); margin-top: 7px; }
   .sup { font-size: 12px; vertical-align: super; color: var(--muted); margin-left: 3px; font-weight: 400; }
 
   /* Chart cards */
@@ -278,6 +281,20 @@
   .tag-bull { background: #d5f0e0; color: var(--green); }
   .tag-bear { background: #ffe1e4; color: var(--red); }
   .tag-neutral { background: var(--blue-soft); color: var(--blue); }
+
+  /* Top Slots filter bar */
+  .filter-bar { display: flex; flex-wrap: wrap; gap: 10px 16px; padding: 12px 0 8px; align-items: center; }
+  .filter-bar .filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .filter-bar .filter-label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .04em; white-space: nowrap; }
+  .fb { display: inline-block; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 600; cursor: pointer; user-select: none;
+        border: 1px solid #d0d0da; background: #f4f4f8; color: #555; transition: background .12s, border-color .12s, color .12s; }
+  .fb:hover { border-color: #aaa; color: #222; }
+  .fb.on { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+  .fb.on-bull { background: #d5f0e0; color: var(--green); border-color: #b8e6cc; }
+  .fb.on-bear { background: #ffe1e4; color: var(--red); border-color: #ffc8cc; }
+  .fb.on-neutral { background: var(--blue-soft); color: var(--blue); border-color: var(--blue-light); }
+  .fb.on-sig { background: #1a2e1e; color: #2fb96d; border-color: #2fb96d44; }
+  .top-count { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
 
   /* Heatmap toggle */
   .hm-toggle { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -360,17 +377,6 @@
   .next-vol .countdown { font-size: 22px; font-weight: 400; }
   .next-vol .desc { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 4px; }
 
-  /* ===== Regime banner ===== */
-  .regime-banner {
-    display: flex; align-items: center; gap: 16px;
-    padding: 14px 20px; border-radius: 12px;
-    font-size: 13px;
-  }
-  .regime-banner.hot { background: linear-gradient(90deg, #fff4e6, #ffe9d6); color: #8a4a00; border-left: 4px solid #f5a524; }
-  .regime-banner.cool { background: linear-gradient(90deg, #e6f4ff, #d6e9ff); color: #0a3a8a; border-left: 4px solid #2f5fff; }
-  .regime-banner.normal { background: #f5f6f8; color: #555; border-left: 4px solid #ccc; }
-  .regime-banner .icon { font-size: 20px; }
-  .regime-banner .delta { font-weight: 700; }
 
   /* ===== Today forecast strip ===== */
   .forecast-card { padding: 16px 20px; }
@@ -415,6 +421,214 @@
   }
   #toast.show { opacity: 1; }
 
+  /* ===== Help Page ===== */
+  .help-wrap { display: flex; flex-direction: column; gap: 18px; }
+  .help-section {
+    background: var(--bg-card); border-radius: 12px; padding: 20px 24px;
+  }
+  .help-section h2 {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+    color: var(--blue); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  }
+  .help-section h2 .hic { font-size: 16px; }
+  .help-section h3 {
+    font-size: 12px; font-weight: 700; color: #222; margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .help-section p { font-size: 13px; color: #444; line-height: 1.75; margin-bottom: 8px; }
+  .help-section ul, .help-section ol { font-size: 13px; color: #444; line-height: 1.8; padding-left: 20px; margin-bottom: 10px; }
+  .help-section li { margin-bottom: 3px; }
+  .help-section b { color: #111; }
+  .help-section code {
+    background: #e8ecf8; color: #2a40b8; padding: 2px 7px; border-radius: 5px;
+    font-family: 'Courier New', monospace; font-size: 12px;
+  }
+  .formula-box {
+    background: #1a1a2e; color: #a8bcff; border-radius: 10px;
+    padding: 14px 18px; font-family: 'Courier New', monospace; font-size: 13px;
+    line-height: 1.8; margin: 10px 0;
+  }
+  .formula-box .comment { color: #5a6a9a; font-style: italic; }
+  .example-box {
+    background: #f0f4ff; border-left: 3px solid var(--blue);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 10px 0; font-size: 13px; color: #333; line-height: 1.7;
+  }
+  .warn-box {
+    background: #fff8ee; border-left: 3px solid #f5a524;
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 10px 0; font-size: 13px; color: #7a4a00; line-height: 1.7;
+  }
+  .ok-box {
+    background: #edfaf3; border-left: 3px solid #2fb96d;
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 10px 0; font-size: 13px; color: #0a5a2a; line-height: 1.7;
+  }
+  .help-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+  .help-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; font-size: 12px; color: #444; line-height: 1.7;
+  }
+  .help-card .hc-title { font-weight: 700; color: #111; font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .help-card .hc-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .session-row { display: flex; gap: 10px; margin: 8px 0; align-items: flex-start; font-size: 13px; }
+  .session-chip {
+    min-width: 120px; padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: 700;
+    text-align: center; flex-shrink: 0;
+  }
+  .conf-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
+  .conf-table th { background: #e8ecf8; color: #2a40b8; padding: 7px 12px; text-align: left; font-weight: 700; border-radius: 4px; }
+  .conf-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+  .conf-table tr:last-child td { border-bottom: none; }
+  .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0; }
+  .toc a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--blue);
+    text-decoration: none; cursor: pointer; transition: background .15s;
+  }
+  .toc a:hover { background: var(--blue-soft); }
+  .step-list { counter-reset: step; list-style: none; padding: 0; }
+  .step-list li {
+    counter-increment: step; display: flex; gap: 12px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: #444; line-height: 1.7;
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before {
+    content: counter(step); min-width: 26px; height: 26px;
+    background: var(--blue); color: #fff; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+  }
+  @media (max-width: 700px) { .help-grid, .toc { grid-template-columns: 1fr; } }
+
+  /* ===== Help sub-tabs (USER GUIDE vs TECHNICAL REFERENCE) ===== */
+  .help-tabs {
+    display: flex; gap: 6px; margin-bottom: 18px;
+    padding: 5px; background: #eef1f7;
+    border-radius: 14px; width: fit-content;
+  }
+  .help-tab {
+    background: transparent; border: none; padding: 9px 18px;
+    border-radius: 10px; cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.5px; color: var(--muted);
+    transition: background .15s, color .15s, box-shadow .15s;
+  }
+  .help-tab:hover { color: #111; }
+  .help-tab.on {
+    background: #fff; color: var(--blue);
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .help-view { display: block; }
+  .help-view[hidden] { display: none; }
+
+  /* ===== Color/badge legend ===== */
+  .legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px; margin: 10px 0 14px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: 12px; color: #444;
+  }
+  .legend-swatch {
+    display: inline-block;
+    width: 14px; height: 14px; border-radius: 4px;
+    flex-shrink: 0; border: 1px solid rgba(0,0,0,.08);
+  }
+  .legend-swatch.round { border-radius: 50%; }
+  .legend-label { color: #444; line-height: 1.4; }
+  .legend-label b { color: #111; }
+
+  /* ===== Inline pills (BULL/BEAR/NEUTRAL/WARN reference) ===== */
+  .pill {
+    display: inline-block; padding: 2px 9px;
+    border-radius: 12px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.3px; vertical-align: middle;
+  }
+  .pill.bull    { background: #d8f5e8; color: #0a5a2a; }
+  .pill.bear    { background: #ffe1e4; color: #a01020; }
+  .pill.neutral { background: #e3eaff; color: #1a3fb8; }
+  .pill.warn    { background: #fff4d6; color: #9a5f00; }
+  .pill.muted   { background: #ececec; color: #555; }
+
+  /* ===== Ctrl+Click highlight pulse ===== */
+  @keyframes helpHighlight {
+    0%   { background: rgba(250,200,40,0.45); box-shadow: 0 0 0 3px rgba(250,200,40,0.6); border-radius: 6px; }
+    60%  { background: rgba(250,200,40,0.25); box-shadow: 0 0 0 6px rgba(250,200,40,0.25); border-radius: 6px; }
+    100% { background: transparent; box-shadow: none; border-radius: 6px; }
+  }
+  .help-highlight { animation: helpHighlight 2s ease-out forwards; }
+
+  /* ===== Per-element walkthrough card ===== */
+  .walkthrough {
+    border-left: 3px solid var(--blue);
+    padding: 8px 0 8px 14px; margin: 10px 0 12px;
+    background: linear-gradient(90deg, rgba(47,95,255,.045), transparent 80%);
+    border-radius: 0 6px 6px 0;
+  }
+  .walkthrough-title {
+    font-weight: 700; color: #111; font-size: 13px; margin-bottom: 4px;
+  }
+  .walkthrough p { margin: 4px 0; font-size: 13px; color: #444; line-height: 1.7; }
+  .walkthrough ul { margin: 6px 0; }
+  .walkthrough .what { color: var(--blue); font-weight: 700; }
+
+  /* ===== Numbered "read-steps" list ===== */
+  .read-steps {
+    list-style: none; padding: 0; counter-reset: rstep;
+    margin: 10px 0 14px;
+  }
+  .read-steps li {
+    counter-increment: rstep;
+    padding: 10px 0 10px 38px; position: relative;
+    font-size: 13px; color: #444; line-height: 1.7;
+    border-bottom: 1px solid var(--border);
+  }
+  .read-steps li:last-child { border-bottom: none; }
+  .read-steps li::before {
+    content: counter(rstep);
+    position: absolute; left: 0; top: 9px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--blue-soft); color: var(--blue);
+    font-weight: 700; font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ===== Keyboard shortcut chip ===== */
+  .kbd {
+    display: inline-block; padding: 1px 8px;
+    background: #2a2f3a; color: #f5f5f5;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono','Consolas',monospace;
+    font-size: 11px; font-weight: 600;
+    border: 1px solid #1a1f2a;
+    box-shadow: 0 1px 0 rgba(0,0,0,.2);
+    vertical-align: middle;
+  }
+
+  /* ===== Ctrl+Click Help Tooltip ===== */
+  body.ctrl-held [data-help] {
+    outline: 2px solid rgba(47,95,255,0.45);
+    outline-offset: 2px;
+    border-radius: 6px;
+    cursor: help !important;
+  }
+  #help-tooltip {
+    position: fixed; pointer-events: none; z-index: 9999;
+    background: var(--blue); color: #fff;
+    padding: 5px 11px 5px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+    font-family: 'Inter', sans-serif;
+    display: flex; align-items: center; gap: 5px;
+    opacity: 0; transition: opacity .15s;
+    box-shadow: 0 4px 14px rgba(47,95,255,0.35);
+    white-space: nowrap;
+  }
+  #help-tooltip.show { opacity: 1; }
+  #help-tooltip .tip-icon { font-size: 13px; }
+
   @media (max-width: 980px) {
     .dashboard { grid-template-columns: 1fr; }
     .sidebar { min-height: auto; }
@@ -435,15 +649,16 @@
     <div>
       <div class="logo">
         <span class="logo-dot"></span>
-        XAUOS
+        Momento
       </div>
       <ul class="nav">
-        <li class="active" onclick="setTab('overview', this)"><span class="ic">◉</span> Overview</li>
-        <li onclick="setTab('heatmap', this)"><span class="ic">▦</span> Heatmap</li>
-        <li onclick="setTab('hourly', this)"><span class="ic">◔</span> By Hour</li>
-        <li onclick="setTab('daily', this)"><span class="ic">◑</span> By Day</li>
-        <li onclick="setTab('top', this)"><span class="ic">★</span> Top Slots</li>
-        <li><span class="ic">⚙</span> Settings</li>
+        <li class="active" onclick="setTab('overview', this)" data-help="h-overview"><span class="ic">◉</span> Overview</li>
+        <li onclick="setTab('heatmap', this)" data-help="h-heatmap"><span class="ic">▦</span> Heatmap</li>
+        <li onclick="setTab('hourly', this)" data-help="h-hourly"><span class="ic">◔</span> By Hour</li>
+        <li onclick="setTab('daily', this)" data-help="h-daily"><span class="ic">◑</span> By Day</li>
+        <li onclick="setTab('top', this)" data-help="h-top"><span class="ic">★</span> Top Slots</li>
+        <li onclick="setTab('settings', this)" data-help="h-settings"><span class="ic">⚙</span> Settings</li>
+        <li onclick="setTab('help', this)"><span class="ic">?</span> Help</li>
         <li><span class="ic">✦</span> Alerts <span class="badge">New</span></li>
       </ul>
     </div>
@@ -461,17 +676,24 @@
     <!-- Top bar -->
     <div class="topbar">
       <div class="meta" id="meta-info">Loading data…</div>
-      <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
-        <span class="btn-label">⟳ REFRESH MT5</span>
-        <span class="spinner"></span>
-      </button>
+      <div class="topbar-actions">
+        <span class="auto-status" id="autoStatus" title="Time since last successful MT5 fetch">—</span>
+        <button class="auto-toggle" id="autoToggle" onclick="toggleAutoRefresh()"
+                title="Toggle automatic MT5 refresh every 60s">
+          <span class="dot"></span><span id="autoLabel">AUTO</span>
+        </button>
+        <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
+          <span class="btn-label">⟳ REFRESH MT5</span>
+          <span class="spinner"></span>
+        </button>
+      </div>
     </div>
 
     <!-- ============ OVERVIEW PANEL ============ -->
     <div class="panel active" id="panel-overview">
 
       <!-- NOW Hero -->
-      <div class="now-hero" id="now-hero">
+      <div class="now-hero" id="now-hero" data-help="h-overview-now">
         <div class="now-cell">
           <span class="now-label">Now · BKK</span>
           <div class="now-time" id="now-time">—</div>
@@ -502,14 +724,32 @@
         </div>
       </div>
 
-      <!-- Regime banner -->
-      <div class="regime-banner normal" id="regime-banner" style="margin-top:14px;">
-        <span class="icon">📊</span>
-        <div id="regime-text">Comparing recent regime to historical…</div>
+      <!-- Stat tiles -->
+      <div class="stat-tiles" style="margin-top:14px;">
+        <div class="stat-tile">
+          <div class="st-label">Best Hour</div>
+          <div class="st-val" id="st-besthour">—</div>
+          <div class="st-sub" id="st-besthour-sub">—</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-label">Best Day</div>
+          <div class="st-val" id="st-bestday">—</div>
+          <div class="st-sub" id="st-bestday-sub">—</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-label">Overall Bull</div>
+          <div class="st-val" id="st-bull">—</div>
+          <div class="st-sub" id="st-bull-sub">—</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-label">Data Coverage</div>
+          <div class="st-val" id="st-bars">—</div>
+          <div class="st-sub" id="st-bars-sub">—</div>
+        </div>
       </div>
 
       <!-- Today's forecast strip -->
-      <div class="card forecast-card" style="margin-top:14px;">
+      <div class="card forecast-card" style="margin-top:14px;" data-help="h-overview-forecast">
         <div class="card-header">
           <span>Today's Forecast — Remaining Hours</span>
           <span style="font-size:11px;color:var(--muted);">Hover for details</span>
@@ -519,29 +759,9 @@
         </div>
       </div>
 
-      <!-- KPI row -->
-      <div class="grid" id="kpi-row" style="margin-top:14px;">
-        <div class="card kpi"><div class="kpi-header"><span class="pill">RECOVERY</span></div>
-          <div><div class="kpi-label">Loading… <span>—</span></div>
-            <div class="kpi-row"><span class="kpi-value">—</span></div></div>
-        </div>
-        <div class="card kpi"><div class="kpi-header"><span class="pill active-pill">ACTIVE</span><span class="arrow-up">↗</span></div>
-          <div><div class="kpi-label">Loading… <span>—</span></div>
-            <div class="kpi-row"><span class="kpi-value">—</span></div></div>
-        </div>
-        <div class="card kpi"><div class="kpi-header"><span class="pill active-pill">ACTIVE</span><span class="arrow-up">↗</span></div>
-          <div><div class="kpi-label">Loading… <span>—</span></div>
-            <div class="kpi-row"><span class="kpi-value">—</span></div></div>
-        </div>
-        <div class="card kpi"><div class="kpi-header"><span class="pill active-pill">ACTIVE</span><span class="arrow-up">↗</span></div>
-          <div><div class="kpi-label">Loading… <span>—</span></div>
-            <div class="kpi-row"><span class="kpi-value">—</span></div></div>
-        </div>
-      </div>
-
       <!-- Mid row: hourly bars + daily line -->
       <div class="grid" style="margin-top:12px;">
-        <div class="card chart-card">
+        <div class="card chart-card" data-help="h-overview-hourchart">
           <div class="card-header">
             <span>HOURLY MOMENTUM</span>
             <div class="tabs-inline">
@@ -551,7 +771,7 @@
           <div class="big-stat" id="overview-hour-stat">—</div>
           <div class="chart-box" id="ch-overview-hour"></div>
         </div>
-        <div class="card chart-card">
+        <div class="card chart-card" data-help="h-overview-daychart">
           <div class="card-header">
             <span>DAILY EFFICIENCY</span>
             <span id="overview-range-label" style="font-size:12px;color:var(--muted);font-weight:500;">—</span>
@@ -563,76 +783,885 @@
 
       <!-- Bottom row: bull bias + tracking + benchmarks -->
       <div class="grid" style="margin-top:12px;">
-        <div class="card span2">
+        <div class="card span2" data-help="h-overview-bias">
           <div class="card-header"><span>BULL/BEAR BIAS BY HOUR</span></div>
           <div class="big-stat" id="bull-bias-stat">—</div>
           <div class="chart-box" id="ch-bias"></div>
-        </div>
-        <div class="card span1">
-          <div class="card-header">
-            <span>TRACKING ON</span>
-            <span class="toggle">LIVE <span class="knob"></span></span>
-          </div>
-          <div style="font-size:13px;color:#555;margin-top:14px;font-weight:500;">
-            Data Coverage: <b id="trk-coverage" style="color:#111;font-weight:600;">—</b>
-          </div>
-          <div class="big-stat" style="margin-top:20px;" id="trk-samples">—</div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;">
-            <span style="font-size:11px;color:var(--muted);font-weight:500;">Signal Strength</span>
-            <div style="display:flex;gap:6px;">
-              <span style="width:10px;height:10px;border-radius:50%;background:var(--blue-soft);"></span>
-              <span style="width:10px;height:10px;border-radius:50%;background:#c5d2ff;"></span>
-              <span style="width:10px;height:10px;border-radius:50%;background:#8da4ff;"></span>
-              <span style="width:10px;height:10px;border-radius:50%;background:#5a7aff;"></span>
-              <span style="width:10px;height:10px;border-radius:50%;background:var(--blue);"></span>
-            </div>
-          </div>
-        </div>
-        <div class="card span1">
-          <div class="card-header"><span>BEST SLOT</span></div>
-          <div class="big-stat" id="best-slot-stat">—</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 32px;gap:6px;margin-top:18px;">
-            <div style="background:#e3eaff;border-radius:8px;padding:12px 8px;font-size:13px;font-weight:600;text-align:center;color:#2f5fff;" id="best-slot-day">DAY</div>
-            <div style="background:#a8bcff;border-radius:8px;padding:12px 8px;font-size:13px;font-weight:600;text-align:center;color:#1a1a3a;" id="best-slot-hour">HOUR</div>
-            <div style="background:var(--blue);border-radius:8px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;" onclick="setTabByName('top')">›</div>
-          </div>
         </div>
       </div>
     </div>
 
     <!-- ============ HEATMAP PANEL ============ -->
     <div class="panel" id="panel-heatmap">
-      <div class="card">
-        <div class="card-header"><span>HOUR × DAY HEATMAP</span></div>
+      <div class="card" data-help="h-heatmap">
+        <div class="card-header">
+          <span>HOUR × DAY HEATMAP</span>
+          <span style="font-size:11px;color:var(--muted);font-weight:500;" id="hm-info">—</span>
+        </div>
         <div class="hm-toggle">
-          <button class="hm-btn active" onclick="setHeatmap('range',this)">AVG RANGE</button>
-          <button class="hm-btn" onclick="setHeatmap('move_pct',this)">MOVE %</button>
-          <button class="hm-btn" onclick="setHeatmap('bull_pct',this)">BULL %</button>
-          <button class="hm-btn" onclick="setHeatmap('count',this)">SAMPLES</button>
+          <button class="hm-btn active" onclick="setHeatmap('range',this)" data-help="h-heatmap-modes">AVG RANGE</button>
+          <button class="hm-btn" onclick="setHeatmap('move_pct',this)" data-help="h-heatmap-modes">MOVE %</button>
+          <button class="hm-btn" onclick="setHeatmap('bull_bear',this)" data-help="h-heatmap-modes">BULL/BEAR %</button>
+          <button class="hm-btn" onclick="setHeatmap('count',this)" data-help="h-heatmap-modes">SAMPLES</button>
+          <button class="hm-btn" onclick="setHeatmap('optimal',this)" data-help="h-heatmap-modes">OPTIMAL ★</button>
+          <button class="hm-btn" style="margin-left:auto;" id="hm-labels-btn" onclick="toggleHmLabels(this)" data-help="h-heatmap-read">SHOW VALUES</button>
         </div>
         <div class="chart-box-lg" id="ch-heatmap"></div>
+        <div style="display:flex;gap:18px;font-size:11px;color:var(--muted);margin-top:8px;flex-wrap:wrap;">
+          <span data-help="h-special"><b style="color:#ff5a6b;">●</b> 2–3 AM BKK — NY close / thin liquidity</span>
+          <span data-help="h-special"><b style="color:#9a9aa6;">●</b> 4 AM BKK — broker reset (no bar)</span>
+          <span data-help="h-special"><b style="color:#e0a060;">●</b> 5 AM Mon — weekend gap risk</span>
+        </div>
       </div>
     </div>
+
+    <!-- ============ SETTINGS PANEL ============ -->
+    <div class="panel" id="panel-settings">
+      <div class="card" data-help="h-settings-period">
+        <div class="card-header"><span>ANALYSIS PERIOD</span><span style="font-size:11px;color:var(--muted);" id="set-info">—</span></div>
+        <p style="font-size:12px;color:#555;margin:8px 0 14px;line-height:1.6;">
+          Filter the historical window used by Heatmap, By Hour, By Day, and Top Slots.
+          Shorter periods reflect current regime; longer periods give more samples.
+        </p>
+        <div class="hm-toggle" id="period-btns">
+          <button class="hm-btn" data-days="30">LAST 30D</button>
+          <button class="hm-btn" data-days="90">LAST 90D</button>
+          <button class="hm-btn" data-days="180">LAST 180D</button>
+          <button class="hm-btn" data-days="365">LAST 1Y</button>
+          <button class="hm-btn" data-days="730">LAST 2Y</button>
+          <button class="hm-btn active" data-days="0">ALL DATA</button>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;font-size:12px;">
+          <label style="color:#555;font-weight:500;">Custom days:</label>
+          <input type="number" id="custom-days" min="7" max="3000" placeholder="e.g. 120"
+            style="width:110px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;">
+          <button class="hm-btn" onclick="applyCustomDays()">APPLY</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;" data-help="h-settings-lookback">
+        <div class="card-header"><span>RECENT REGIME LOOKBACK</span></div>
+        <p style="font-size:12px;color:#555;margin:8px 0 14px;line-height:1.6;">
+          The "hot/cool/normal" regime banner on Overview compares this window vs all-time history.
+        </p>
+        <div class="hm-toggle" id="lookback-btns">
+          <button class="hm-btn" data-lb="7">7D</button>
+          <button class="hm-btn active" data-lb="30">30D</button>
+          <button class="hm-btn" data-lb="60">60D</button>
+          <button class="hm-btn" data-lb="90">90D</button>
+          <button class="hm-btn" data-lb="180">180D</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div class="card-header"><span>CURRENT SELECTION</span></div>
+        <div id="settings-summary" style="font-size:13px;color:#333;line-height:1.8;margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- ============ HELP PANEL ============ -->
+    <div class="panel" id="panel-help">
+      <div class="help-wrap">
+
+        <!-- Sub-view toggle: USER GUIDE vs TECHNICAL REFERENCE -->
+        <div class="help-tabs">
+          <button class="help-tab on" data-v="user" onclick="setHelpView('user')">👤 USER GUIDE</button>
+          <button class="help-tab"     data-v="tech" onclick="setHelpView('tech')">🔧 TECHNICAL REFERENCE</button>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- ==================   USER GUIDE   ========================== -->
+        <!-- ============================================================ -->
+        <div class="help-view" id="help-view-user">
+
+          <div class="help-section">
+            <h2><span class="hic">👤</span> USER GUIDE — READ THE DASHBOARD</h2>
+            <p>This guide walks you through <b>every panel, chart, color and button</b> in plain English. No math here — formulas live in the <b>Technical Reference</b> tab above.</p>
+            <p>The dashboard analyzes <b>XAUUSD (gold) 1-hour candles</b> in <b>Bangkok time (UTC+7)</b>. Use it to plan <i>when</i> to trade gold during the week and how much price typically moves.</p>
+            <div class="toc">
+              <a onclick="scrollHelp('u-quick')">⚡ Quick Start (60 seconds)</a>
+              <a onclick="scrollHelp('u-legend')">🎨 Color &amp; Badge Legend</a>
+              <a onclick="scrollHelp('u-topbar')">🔄 Top Bar — Refresh &amp; Auto-fetch</a>
+              <a onclick="scrollHelp('u-sidebar')">📋 Sidebar Navigation</a>
+              <a onclick="scrollHelp('h-overview')">◉ Overview Panel</a>
+              <a onclick="scrollHelp('h-heatmap')">▦ Heatmap Panel</a>
+              <a onclick="scrollHelp('h-hourly')">◔ By Hour Panel</a>
+              <a onclick="scrollHelp('h-daily')">◑ By Day Panel</a>
+              <a onclick="scrollHelp('h-top')">★ Top Slots Panel</a>
+              <a onclick="scrollHelp('h-settings')">⚙ Settings Panel</a>
+              <a onclick="scrollHelp('h-workflow')">🚀 Recommended Workflow</a>
+            </div>
+          </div>
+
+          <!-- QUICK START -->
+          <div class="help-section" id="u-quick">
+            <h2><span class="hic">⚡</span> QUICK START — 60 SECONDS</h2>
+            <ol class="step-list">
+              <li><b>Look at the NOW Hero</b> (big blue block at the top of Overview). It tells you what's happening <i>right now</i>: time, session, expected price movement this hour, and how confident the dashboard is.</li>
+              <li><b>Glance at the Forecast Strip below it.</b> Each card = one upcoming hour today. Big number = expected $ move. Green/red bar = direction tendency. Skip any card labelled <span class="pill warn">SKIP</span> or <span class="pill muted">RESET</span>.</li>
+              <li><b>Open the Heatmap.</b> Find dark blue cells — those are the most active (hour × day) slots. Switch to <b>BULL/BEAR %</b> to see direction tendency. Cross-check with Top Slots.</li>
+            </ol>
+            <div class="ok-box">
+              <b>Cheat:</b> The single best gold-trading window of the week (statistically) is row #1 in <b>Top Slots</b> after you apply <b>RELIABILITY ★</b> and <b>MIN SAMPLES ≥30</b> filters. That's the highest-edge slot that also passes statistical reliability.
+            </div>
+          </div>
+
+          <!-- COLOR LEGEND -->
+          <div class="help-section" id="u-legend">
+            <h2><span class="hic">🎨</span> COLOR &amp; BADGE LEGEND</h2>
+            <p>Every color on the dashboard means something. Here's what to look for:</p>
+
+            <h3>Session colors (cards, charts, badges)</h3>
+            <div class="legend-grid">
+              <div class="legend-item"><span class="legend-swatch" style="background:#f5a524;"></span><span class="legend-label"><b>Asia</b> · 06–14 BKK</span></div>
+              <div class="legend-item"><span class="legend-swatch" style="background:#2f5fff;"></span><span class="legend-label"><b>London</b> · 14–19 BKK</span></div>
+              <div class="legend-item"><span class="legend-swatch" style="background:#9a4dff;"></span><span class="legend-label"><b>Overlap</b> · 19–23 BKK</span></div>
+              <div class="legend-item"><span class="legend-swatch" style="background:#2fb96d;"></span><span class="legend-label"><b>NY</b> · 23–04 BKK</span></div>
+              <div class="legend-item"><span class="legend-swatch" style="background:#9a9aa6;"></span><span class="legend-label"><b>Off-hours</b> · market closed</span></div>
+            </div>
+
+            <h3>Bias tags (next to stats)</h3>
+            <div class="legend-grid">
+              <div class="legend-item"><span class="pill bull">BULL</span><span class="legend-label">Bull % &gt; 55 — historically closes up</span></div>
+              <div class="legend-item"><span class="pill bear">BEAR</span><span class="legend-label">Bull % &lt; 45 — historically closes down</span></div>
+              <div class="legend-item"><span class="pill neutral">NEUTRAL</span><span class="legend-label">Bull % 45–55 — no clear edge</span></div>
+            </div>
+
+            <h3>Warning dots (heatmap legend, table rows)</h3>
+            <div class="legend-grid">
+              <div class="legend-item"><span class="legend-swatch round" style="background:#ff5a6b;"></span><span class="legend-label"><b>2–3 AM BKK</b> · thin market</span></div>
+              <div class="legend-item"><span class="legend-swatch round" style="background:#9a9aa6;"></span><span class="legend-label"><b>4 AM BKK</b> · broker reset (no bar)</span></div>
+              <div class="legend-item"><span class="legend-swatch round" style="background:#e0a060;"></span><span class="legend-label"><b>5 AM Monday</b> · weekend gap risk</span></div>
+            </div>
+
+            <h3>P-value stars (Top Slots column)</h3>
+            <div class="legend-grid">
+              <div class="legend-item"><span style="color:#2fb96d;font-weight:700;font-size:14px;">★★</span><span class="legend-label">p &lt; 0.01 — very strong edge</span></div>
+              <div class="legend-item"><span style="color:#7ec8a4;font-weight:700;font-size:14px;">★</span><span class="legend-label">p &lt; 0.05 — significant edge</span></div>
+              <div class="legend-item"><span style="color:#f5a524;font-weight:700;font-size:14px;">~</span><span class="legend-label">p &lt; 0.10 — weak/borderline</span></div>
+              <div class="legend-item"><span style="color:#9a9aa6;">ns</span><span class="legend-label">no significant edge (coin-flip)</span></div>
+            </div>
+
+            <h3>Regime banner colors (Overview)</h3>
+            <div class="legend-grid">
+              <div class="legend-item"><span class="pill" style="background:#ffe1e4;color:#a01020;">🔥 HOT</span><span class="legend-label">Recent moves &gt; +25% vs history</span></div>
+              <div class="legend-item"><span class="pill" style="background:#d6efff;color:#0a4a8a;">❄️ COOL</span><span class="legend-label">Recent moves &lt; −15% vs history</span></div>
+              <div class="legend-item"><span class="pill muted">📊 NORMAL</span><span class="legend-label">Within ±15% of historical avg</span></div>
+            </div>
+
+            <h3>Auto-refresh status (top right)</h3>
+            <div class="legend-grid">
+              <div class="legend-item"><span class="legend-swatch round" style="background:#2fb96d;box-shadow:0 0 6px rgba(47,185,109,.7);"></span><span class="legend-label"><b>AUTO ON</b> · silent fetch every 60s</span></div>
+              <div class="legend-item"><span class="legend-swatch round" style="background:#c4c4c4;"></span><span class="legend-label"><b>AUTO OFF</b> · manual refresh only</span></div>
+              <div class="legend-item"><span class="legend-label"><b>updated 12s ago</b> · normal status</span></div>
+              <div class="legend-item"><span class="legend-label" style="color:#ff5a6b;font-weight:600;">updated 180s ago · errors (red)</span></div>
+            </div>
+          </div>
+
+          <!-- TOPBAR -->
+          <div class="help-section" id="u-topbar">
+            <h2><span class="hic">🔄</span> TOP BAR — REFRESH &amp; AUTO-FETCH</h2>
+            <p>The strip at the top of every panel has these elements from left to right:</p>
+
+            <div class="walkthrough">
+              <div class="walkthrough-title">Meta info (left side)</div>
+              <p>Dataset summary: symbol (<code>XAUUSD.sc</code>), total bars loaded, date range (oldest → newest bar), and the timezone (always <b>BKK · UTC+7</b>).</p>
+            </div>
+
+            <div class="walkthrough">
+              <div class="walkthrough-title">"updated Ns ago" indicator</div>
+              <p>Time since the last successful MT5 fetch. Reads <b>seconds → minutes → hours</b> as time passes. Shows <code>syncing…</code> while a fetch is in progress. Turns <b style="color:#ff5a6b;">red</b> if 2 consecutive auto-fetches failed — you're trading on stale data and need to fix MT5.</p>
+            </div>
+
+            <div class="walkthrough">
+              <div class="walkthrough-title">AUTO ON / AUTO OFF toggle (pill button)</div>
+              <p><b>Green pulsing dot = ON.</b> The dashboard silently re-fetches new MT5 bars every 60 seconds and refreshes all charts in the background. Default: ON. Your preference is saved in your browser.</p>
+              <p><b>Grey dot = OFF.</b> No background fetching. You need to click the manual refresh button to pull fresh bars.</p>
+            </div>
+
+            <div class="walkthrough">
+              <div class="walkthrough-title"><span class="kbd">⟳ REFRESH MT5</span> button</div>
+              <p>Forces an immediate MT5 fetch and reloads everything. Useful after a news event or when you first open the dashboard. The button spins while the fetch is running (typically 3–10 seconds). If a fetch is already in progress, clicking again shows "Already fetching — please wait…".</p>
+            </div>
+
+            <div class="warn-box">
+              <b>Heads up:</b> MetaTrader 5 must be <b>running and logged in</b> for fetches to work (manual or auto). If MT5 is closed, the status indicator turns red after 2 failed cycles.
+            </div>
+          </div>
+
+          <!-- SIDEBAR -->
+          <div class="help-section" id="u-sidebar">
+            <h2><span class="hic">📋</span> SIDEBAR NAVIGATION</h2>
+            <p>The left rail lets you switch between panels. Each one shows the same data from a different angle.</p>
+            <ul>
+              <li><b>◉ Overview</b> — your home base. Real-time NOW info + today's forecast + the most useful charts.</li>
+              <li><b>▦ Heatmap</b> — the 7×24 grid. Pattern-spotting at a glance.</li>
+              <li><b>◔ By Hour</b> — drill into one specific hour across all days.</li>
+              <li><b>◑ By Day</b> — drill into one specific day across all hours.</li>
+              <li><b>★ Top Slots</b> — the highest-edge (day × hour) combinations, with filters and statistical significance.</li>
+              <li><b>⚙ Settings</b> — change the analysis window and regime lookback.</li>
+              <li><b>? Help</b> — this page.</li>
+            </ul>
+            <div class="ok-box">
+              <b>Pro tip — Ctrl+Click for help:</b> Hold <span class="kbd">Ctrl</span> and click <b>any element</b> on the dashboard. A tooltip appears showing what that element is, and clicking jumps straight to the help section that explains it.
+            </div>
+          </div>
+
+          <!-- ============ OVERVIEW ============ -->
+          <div class="help-section" id="h-overview">
+            <h2><span class="hic">◉</span> OVERVIEW PANEL</h2>
+            <p>Your home page. Shows <b>now + today + recent regime</b> all in one view. You'll spend 90% of your time here.</p>
+
+            <h3 id="h-overview-now">1 · NOW Hero (blue gradient block at top)</h3>
+            <p>Three cells. Each one answers a different "what's the situation?" question.</p>
+
+            <div class="walkthrough">
+              <div class="walkthrough-title">Left cell — <span class="what">Now · BKK</span></div>
+              <p><b>Current BKK time</b> in big letters, plus the day of week, current trading session, and last gold price from your dataset. The <b>session badge</b> at the bottom has a colored dot:</p>
+              <ul>
+                <li><span class="legend-swatch round" style="background:#2fb96d;"></span> &nbsp;Green dot = market active, tradeable.</li>
+                <li><span class="legend-swatch round" style="background:#ff5a6b;"></span> &nbsp;Red dot = thin-market or dead hour — skip.</li>
+                <li><span class="legend-swatch round" style="background:#9a9aa6;"></span> &nbsp;Grey dot = weekend, market closed.</li>
+              </ul>
+            </div>
+
+            <div class="walkthrough">
+              <div class="walkthrough-title">Middle cell — <span class="what">This hour typically</span></div>
+              <p>What the <i>current hour</i> looks like historically (averaged across the same DOW+hour combinations in your dataset). Three rows:</p>
+              <ul>
+                <li><b>Avg Range</b> — expected $ move from low to high in this hour.</li>
+                <li><b>Bull bias</b> — % of past bars at this slot that closed green. 50% = coin flip.</li>
+                <li><b>Samples</b> — how many past bars went into that average. More = more reliable.</li>
+              </ul>
+              <p>Below those: a <b>Confidence bar</b> showing how much to trust the average. Empty bar = ignore; full bar = very reliable. <i>(If this exact DOW+hour has too few samples, it falls back to "all days, this hour" — noted in italic.)</i></p>
+            </div>
+
+            <div class="walkthrough">
+              <div class="walkthrough-title">Right cell — <span class="what">Next high-vol window</span></div>
+              <p>Looks ahead the <b>next 8 hours</b> and finds the first slot whose expected range is &gt;15% above the dataset average. Shows a countdown until that slot starts and what range to expect. If nothing qualifies, says "no high-vol slot in the next 8h".</p>
+            </div>
+
+            <h3>2 · Stat Tiles (4 small boxes below the hero)</h3>
+            <div class="walkthrough">
+              <div class="walkthrough-title">BEST HOUR</div>
+              <p>The single hour of day with the highest historical avg range (excluding thin/dead hours). This is the most active hour in an average week.</p>
+            </div>
+            <div class="walkthrough">
+              <div class="walkthrough-title">BEST DAY</div>
+              <p>The day of week with the highest average hourly range. Trade more aggressively on this day.</p>
+            </div>
+            <div class="walkthrough">
+              <div class="walkthrough-title">OVERALL BULL</div>
+              <p>Across all hours, % of bars that closed green. ~50% means gold is neither persistently bullish nor bearish over your dataset.</p>
+            </div>
+            <div class="walkthrough">
+              <div class="walkthrough-title">DATA COVERAGE</div>
+              <p>Number of bars loaded and how many years that covers. More years = more reliable averages.</p>
+            </div>
+
+            <h3 id="h-overview-regime">3 · Regime Banner (colored bar)</h3>
+            <p>Compares <b>recent</b> volatility to the <b>long-term average</b>. Tells you if the market is currently more or less active than usual.</p>
+            <ul>
+              <li><span class="pill" style="background:#ffe1e4;color:#a01020;">🔥 HOT REGIME</span> — Recent moves are <b>25%+ larger</b> than long-term. Widen stops. Avoid tight scalps.</li>
+              <li><span class="pill" style="background:#d6efff;color:#0a4a8a;">❄️ COOL REGIME</span> — Recent moves are <b>15%+ smaller</b>. Scale targets down. Breakout setups underperform.</li>
+              <li><span class="pill muted">📊 NORMAL</span> — Within ±15% of historical. Use standard sizing.</li>
+            </ul>
+            <p>The "recent" window length is set in <b>Settings → Regime Lookback</b> (default 30 days).</p>
+
+            <h3 id="h-overview-forecast">4 · Today's Forecast Strip</h3>
+            <p>One card for every remaining H1 hour today. Read left (now) to right (end of day).</p>
+            <ul>
+              <li><b>Highlighted blue card</b> = the current hour. Everything else = upcoming.</li>
+              <li><b>Session tag</b> (top of card): Asia / Lon / OVL / NY — what session that hour belongs to.</li>
+              <li><b>Big $ number</b> = expected range for that hour (historical avg at this DOW+hour).</li>
+              <li><b>Colored bar at the bottom</b> = bull bias as a horizontal bar (green = bullish lean, red = bearish lean).</li>
+              <li><span class="pill warn">SKIP</span> badge = thin-market or Monday-gap hour. Stats are unreliable — don't trade.</li>
+              <li><span class="pill muted">RESET</span> badge = 4 AM dead hour (no bar will be produced by your broker).</li>
+            </ul>
+            <p>Hover any card for exact numbers including bull %, samples, and confidence.</p>
+
+            <h3 id="h-overview-hourchart">5 · Hourly Momentum chart (left)</h3>
+            <p>Two layers on one chart:</p>
+            <ul>
+              <li><b>Blue bars</b> = historical avg range per hour (all-time).</li>
+              <li><b>Red line</b> = recent N-day avg range per hour (N = your regime lookback).</li>
+            </ul>
+            <p><b>How to read:</b> Where the red line is <b>above</b> the blue bars, recent action is <i>hotter</i> than usual for that hour. Where it's <b>below</b>, recent action is <i>cooler</i>. Faint colored bands behind the chart = session boundaries (orange Asia / blue London / purple Overlap / green NY).</p>
+
+            <h3 id="h-overview-daychart">6 · Daily Efficiency chart (right)</h3>
+            <p>Dotted line of average range by day of week. Helps you decide which weekdays to be aggressive (high range = wider opportunities) vs cautious (low range = tight action).</p>
+
+            <h3 id="h-overview-bias">7 · Bull/Bear Bias by Hour chart (bottom)</h3>
+            <p>Bar chart with the y-axis <b>centered on 0</b> (representing 50% = neutral). Each bar = how far that hour's bull % deviates from a coin flip:</p>
+            <ul>
+              <li><b>Bar above 0</b> (green) = historically closes more often green at this hour.</li>
+              <li><b>Bar below 0</b> (red) = historically closes more often red.</li>
+              <li><b>Tall bar in either direction</b> = strong directional edge worth trading.</li>
+            </ul>
+          </div>
+
+          <!-- ============ HEATMAP ============ -->
+          <div class="help-section" id="h-heatmap">
+            <h2><span class="hic">▦</span> HEATMAP PANEL</h2>
+            <p>A <b>7-row × 24-column grid</b> showing every <b>day-of-week × hour-of-day</b> combination at a glance. The fastest way to spot patterns.</p>
+
+            <h3 id="h-heatmap-read">How to read the grid</h3>
+            <ol class="read-steps">
+              <li><b>Rows</b> = days of week (Mon at the top, Sun at the bottom).</li>
+              <li><b>Columns</b> = hours of day in BKK (12 AM on the left → 11 PM on the right).</li>
+              <li><b>Cell color</b> = the value of the selected metric. Darker = higher (for Range / Move / Samples / Optimal). For Bull/Bear: green = bullish, red = bearish, white = 50/50 neutral.</li>
+              <li><b>Cell number</b> = the actual value, if <b>SHOW VALUES</b> is on. Click <b>HIDE VALUES</b> to clean up the view.</li>
+              <li><b>4 AM column</b> = always empty grey (broker reset, no bar exists).</li>
+            </ol>
+            <p>The text above the grid shows the <b>global maximum and minimum cell</b> for the current metric — quick orientation without scanning every cell.</p>
+
+            <h3 id="h-heatmap-modes">The 5 metric buttons</h3>
+            <div class="help-grid">
+              <div class="help-card">
+                <div class="hc-title">AVG RANGE <span style="color:var(--muted);font-weight:400;">(default)</span></div>
+                Expected $ movement per hour at each slot. <b>Most useful for sizing trades.</b>
+              </div>
+              <div class="help-card">
+                <div class="hc-title">MOVE %</div>
+                Same as range, but as % of price. Better for comparing across years (gold's price doubled since 2022).
+              </div>
+              <div class="help-card">
+                <div class="hc-title">BULL/BEAR %</div>
+                Directional bias per cell. <b>Green = bulls win more often, red = bears.</b> White cells = 50/50 (no edge). Look for cells with strong color.
+              </div>
+              <div class="help-card">
+                <div class="hc-title">SAMPLES</div>
+                How many bars went into each cell. Pale cells = low sample count = low confidence. Use to discount weak signals.
+              </div>
+              <div class="help-card">
+                <div class="hc-title">OPTIMAL ★</div>
+                Combined score: <b>range strength × directional bias</b>. Dark cells = both a big move AND a clear direction. The most actionable view.
+              </div>
+            </div>
+
+            <h3>SHOW VALUES / HIDE VALUES toggle</h3>
+            <p>Top-right of the heatmap. Toggles the numeric labels in each cell on/off. Hide for a cleaner color-only view; show to read exact numbers.</p>
+
+            <h3>Special-hour markers (above the grid)</h3>
+            <p>Three colored dots in the legend bar tell you which columns have caveats — <b>2–3 AM (thin)</b>, <b>4 AM (dead)</b>, <b>5 AM Mon (gap)</b>. Details in <b>Technical Reference → Special Hour Logic</b>.</p>
+
+            <div class="warn-box">
+              <b>Reading caution:</b> A dark range cell with very few samples is suspicious — could be noise from a single big day. Always cross-check with <b>SAMPLES</b> mode before trusting a cell.
+            </div>
+          </div>
+
+          <!-- ============ BY HOUR ============ -->
+          <div class="help-section" id="h-hourly">
+            <h2><span class="hic">◔</span> BY HOUR PANEL</h2>
+            <p>Aggregates <b>all data across all days of the week</b>, grouped only by hour-of-day. Strips out the DOW dimension to show the raw hour effect.</p>
+
+            <h3 id="h-hourly-charts">The two charts</h3>
+            <div class="walkthrough">
+              <div class="walkthrough-title">AVG RANGE BY HOUR (left)</div>
+              <p>Line chart with faint session band shading in the background (orange = Asia, blue = London, purple = Overlap, green = NY). Clear peaks at <b>0–1 AM</b> and <b>9–11 PM BKK</b> confirm the NY + Overlap dominance for gold.</p>
+            </div>
+            <div class="walkthrough">
+              <div class="walkthrough-title">BULLISH % BY HOUR (right)</div>
+              <p>Bar chart with a dashed reference line at 50% (neutral). Bars <b>above 50%</b> = hour historically closes green more often; <b>below 50%</b> = closes red more often.</p>
+            </div>
+
+            <h3 id="h-hourly-table">Stats table — every column explained</h3>
+            <table class="conf-table">
+              <thead><tr><th>Column</th><th>What it means</th></tr></thead>
+              <tbody>
+                <tr><td><b>Hour (BKK)</b></td><td>Hour of day in Bangkok time. Format: 12AM, 1AM, …, 11PM.</td></tr>
+                <tr><td><b>Avg Range</b></td><td>Average $ range (high − low). The number in <span style="color:var(--muted);">grey (clean: X)</span> next to it = same average with thin/gap bars excluded.</td></tr>
+                <tr><td><b>Avg Body</b></td><td>Average $ body (|close − open|). Movement excluding wicks.</td></tr>
+                <tr><td><b>Move %</b></td><td>Average body as % of price. Comparable across price eras.</td></tr>
+                <tr><td><b>Bull %</b></td><td>% of bars that closed green. Grey number = clean version (excluding thin/gap).</td></tr>
+                <tr><td><b>Bear %</b></td><td>% of bars that closed red.</td></tr>
+                <tr><td><b>Samples</b></td><td>Total bars / clean bars. More samples = more reliable.</td></tr>
+                <tr><td><b>Bias</b></td><td><span class="pill bull">BULL</span>, <span class="pill bear">BEAR</span>, or <span class="pill neutral">NEUTRAL</span> tag — or a special-hour warning label.</td></tr>
+              </tbody>
+            </table>
+
+            <h3>Row colors</h3>
+            <ul>
+              <li><b>Normal white row</b> = tradeable hour, stats are reliable.</li>
+              <li><b>Orange-tinted row</b> = thin-market hour (2 AM or 3 AM BKK). Stats are skewed by wide spreads.</li>
+              <li><b>Grey row</b> = dead hour (4 AM BKK). No bar exists — count is 0.</li>
+            </ul>
+          </div>
+
+          <!-- ============ BY DAY ============ -->
+          <div class="help-section" id="h-daily">
+            <h2><span class="hic">◑</span> BY DAY PANEL</h2>
+            <p>Aggregates <b>all data grouped only by day of week</b>, averaging across all 24 hours. Shows which weekdays are most volatile overall.</p>
+
+            <h3 id="h-daily-charts">The two charts</h3>
+            <div class="walkthrough">
+              <div class="walkthrough-title">AVG RANGE BY DAY (left)</div>
+              <p>Bar chart, one bar per weekday. Helps decide which days to trade more aggressively.</p>
+            </div>
+            <div class="walkthrough">
+              <div class="walkthrough-title">BULLISH % BY DAY (right)</div>
+              <p>Bar chart, one bar per weekday. Reveals consistent directional tilt — e.g., some traders find Friday reversals against the week's trend.</p>
+            </div>
+
+            <h3 id="h-daily-table">Stats table — every column explained</h3>
+            <table class="conf-table">
+              <thead><tr><th>Column</th><th>What it means</th></tr></thead>
+              <tbody>
+                <tr><td><b>Day</b></td><td>Day of the week (BKK timezone).</td></tr>
+                <tr><td><b>Avg Range</b></td><td>Mean hourly range across every bar on this day.</td></tr>
+                <tr><td><b>Move %</b></td><td>Mean body as % of price for the day.</td></tr>
+                <tr><td><b>Bull %</b></td><td>% of bars on this day that closed green.</td></tr>
+                <tr><td><b>Bear %</b></td><td>% of bars that closed red.</td></tr>
+                <tr><td><b>Samples</b></td><td>Total bars in the dataset for this day.</td></tr>
+                <tr><td><b>Bias</b></td><td>BULL / BEAR / NEUTRAL tag.</td></tr>
+              </tbody>
+            </table>
+
+            <div class="example-box">
+              <b>How to use:</b> If Wednesday has the highest Avg Range, it has the widest typical H1 moves — good for range traders. If Saturday has the lowest, avoid scalping into thin Saturday sessions.
+            </div>
+          </div>
+
+          <!-- ============ TOP SLOTS ============ -->
+          <div class="help-section" id="h-top">
+            <h2><span class="hic">★</span> TOP SLOTS PANEL</h2>
+            <p>Ranks all <b>168 possible (day × hour) combinations</b> by Avg Range — the highest-edge windows of the trading week. Uses cleaned data (thin/gap bars excluded).</p>
+
+            <h3>Filter bar — 5 filter groups</h3>
+            <p>Pills at the top let you narrow the list. Active filter = blue background. Click any pill to toggle.</p>
+
+            <div class="walkthrough">
+              <div class="walkthrough-title">SESSION</div>
+              <p><b>All / Asia / London / NY / Overlap</b> — show only slots within a specific trading session. Use to focus on hours you're awake for.</p>
+            </div>
+            <div class="walkthrough">
+              <div class="walkthrough-title">DAY</div>
+              <p><b>All / Mon / Tue / Wed / Thu / Fri</b> — only show slots from chosen weekdays. Useful if you only trade certain days.</p>
+            </div>
+            <div class="walkthrough">
+              <div class="walkthrough-title">BIAS</div>
+              <p><b>All / Bull / Bear / Neutral</b> — filter by directional bias. Choose <b>Bull</b> to find long-biased windows, <b>Bear</b> for shorts, <b>Neutral</b> for both-ways setups.</p>
+            </div>
+            <div class="walkthrough">
+              <div class="walkthrough-title">RELIABILITY (p-value)</div>
+              <p>Filter by statistical significance of the directional edge:</p>
+              <ul>
+                <li><b>★★ p&lt;0.01</b> = very strong edge (less than 1% chance it's random)</li>
+                <li><b>★ p&lt;0.05</b> = significant edge (less than 5% chance)</li>
+                <li><b>~ p&lt;0.10</b> = weak/borderline edge</li>
+                <li><b>All</b> = ignore reliability, show everything</li>
+              </ul>
+            </div>
+            <div class="walkthrough">
+              <div class="walkthrough-title">MIN SAMPLES</div>
+              <p><b>All / ≥20 / ≥30 / ≥50</b> — hide rows with fewer than N historical samples. Use ≥30 or ≥50 to ensure you're not looking at noise.</p>
+            </div>
+
+            <p>The <b>"N of 168 slots"</b> label on the right shows how many slots match your filters.</p>
+
+            <h3>Table columns</h3>
+            <table class="conf-table">
+              <thead><tr><th>Column</th><th>What it means</th></tr></thead>
+              <tbody>
+                <tr><td><b>#</b></td><td>Rank by Avg Range (1 = highest).</td></tr>
+                <tr><td><b>Day</b></td><td>Day of week.</td></tr>
+                <tr><td><b>Hour (BKK)</b></td><td>Hour of day in Bangkok time.</td></tr>
+                <tr><td><b>Session</b></td><td>Colored session badge (Asia / London / NY / Overlap).</td></tr>
+                <tr><td><b>Avg Range</b></td><td>Mean $ range for this slot (clean data only).</td></tr>
+                <tr><td><b>Move %</b></td><td>Mean body as % of price.</td></tr>
+                <tr><td><b>Bull %</b></td><td>% of clean bars that closed green (shown in green text).</td></tr>
+                <tr><td><b>Bear %</b></td><td>% of clean bars that closed red (shown in red text).</td></tr>
+                <tr><td><b>Samples</b></td><td>Clean bar count used for stats.</td></tr>
+                <tr><td><b>Bias</b></td><td>BULL / BEAR / NEUTRAL tag.</td></tr>
+                <tr><td><b>P-Value</b></td><td>Star rating for statistical reliability (see legend in the column header).</td></tr>
+              </tbody>
+            </table>
+
+            <div class="ok-box">
+              <b>How to use Top Slots:</b> Pick the top 5–10 slots that align with your trading hours and bias. Set TP at <b>~65% of Avg Range</b>, SL at <b>~40% of Avg Range</b> → ~1.6:1 R:R in an average-range scenario.
+            </div>
+          </div>
+
+          <!-- ============ SETTINGS ============ -->
+          <div class="help-section" id="h-settings">
+            <h2><span class="hic">⚙</span> SETTINGS PANEL</h2>
+
+            <h3 id="h-settings-period">Analysis Period</h3>
+            <p>Controls how much historical data the stat panels use (Heatmap, By Hour, By Day, Top Slots, Overview charts).</p>
+            <div class="help-grid">
+              <div class="help-card"><div class="hc-title">Last 30D</div>Snapshot of current behavior. Low sample count — treat as anecdote.</div>
+              <div class="help-card"><div class="hc-title">Last 90D</div>~1,300 bars. Useful for current regime analysis.</div>
+              <div class="help-card"><div class="hc-title">Last 180D / 1Y</div>Balanced — captures one seasonal cycle. <b>Recommended.</b></div>
+              <div class="help-card"><div class="hc-title">All Data</div>Maximum confidence (~23,000+ bars). Best for structural patterns.</div>
+            </div>
+            <p>The <b>Custom Days</b> input lets you enter any number ≥ 7. Your selection is saved in your browser.</p>
+
+            <h3 id="h-settings-lookback">Regime Lookback</h3>
+            <p>How many days the <b>Regime Banner</b> (on Overview) uses for its "recent" comparison. Default 30. Shorter (7d) catches the current week's regime; longer (90–180d) smooths out noise.</p>
+            <p><i>This is separate from Analysis Period. The Regime Banner always uses the full dataset as "historical".</i></p>
+          </div>
+
+          <!-- ============ WORKFLOW ============ -->
+          <div class="help-section" id="h-workflow">
+            <h2><span class="hic">🚀</span> RECOMMENDED TRADING WORKFLOW</h2>
+            <ol class="step-list">
+              <li><b>Open Overview.</b> Check the Regime Banner — HOT = widen SL, COOL = scale TP down, NORMAL = standard sizing.</li>
+              <li><b>Scan the Forecast Strip.</b> Find the next high-range hour. Is it <span class="pill warn">SKIP</span> or <span class="pill muted">RESET</span>? If so, skip it.</li>
+              <li><b>Confirm on Heatmap (AVG RANGE mode).</b> Is the cell dark? Now switch to <b>SAMPLES</b> — does it have enough data?</li>
+              <li><b>Check direction.</b> Switch Heatmap to <b>BULL/BEAR %</b>. Is the cell clearly green or red? White = no directional edge.</li>
+              <li><b>Cross-reference Top Slots.</b> Is your hour in the top 20? Apply <b>MIN SAMPLES ≥30</b> and <b>RELIABILITY ★</b> to filter out noise.</li>
+              <li><b>Size the trade.</b> Use <code>Avg Range × 0.65</code> for TP, <code>Avg Range × 0.40</code> for SL → ~1.6:1 R:R.</li>
+              <li><b>Verify data freshness.</b> Check the top-bar "updated Xs ago". If red or many minutes old, click <b>⟳ REFRESH MT5</b>.</li>
+            </ol>
+            <div class="ok-box">
+              <b>Quick cheat sheet:</b><br>
+              ✅ <b>Best windows:</b> 19:00–23:00 BKK (Overlap) and 23:00–01:00 BKK (NY open)<br>
+              ❌ <b>Avoid:</b> 02:00–04:59 BKK (NY close + thin + broker reset)<br>
+              ⚠ <b>Dead zone:</b> 04:00 BKK (no bar generated)<br>
+              ⚠ <b>Gap risk:</b> Monday 05:00 BKK (weekend gap inflates the bar)
+            </div>
+            <div class="warn-box">
+              <b>This dashboard is a statistical guide, not a signal generator.</b> Every average is historical. Any single hour can move far outside its average due to news. Always use proper risk management.
+            </div>
+          </div>
+
+        </div><!-- /#help-view-user -->
+
+
+        <!-- ============================================================ -->
+        <!-- ===========   TECHNICAL REFERENCE   ======================== -->
+        <!-- ============================================================ -->
+        <div class="help-view" id="help-view-tech" hidden>
+
+          <div class="help-section">
+            <h2><span class="hic">🔧</span> TECHNICAL REFERENCE</h2>
+            <p>Formulas, code references, and data-pipeline details for everything the dashboard calculates. For plain-English usage instructions, switch to the <b>User Guide</b> tab above.</p>
+            <div class="toc">
+              <a onclick="scrollHelp('t-pipeline')">🔌 Data Pipeline</a>
+              <a onclick="scrollHelp('h-data')">📦 Data Source &amp; Coverage</a>
+              <a onclick="scrollHelp('h-tz')">🕐 Timezone &amp; Sessions</a>
+              <a onclick="scrollHelp('h-special')">⚠ Special Hour Logic</a>
+              <a onclick="scrollHelp('h-metrics')">📐 Core Formulas</a>
+              <a onclick="scrollHelp('h-confidence')">🎯 Confidence Score</a>
+              <a onclick="scrollHelp('t-pvalue')">📊 P-Value (Significance)</a>
+              <a onclick="scrollHelp('t-optimal')">★ Optimal Edge Score</a>
+              <a onclick="scrollHelp('t-regime')">🌡 Regime Delta</a>
+              <a onclick="scrollHelp('t-api')">🌐 API Endpoints</a>
+              <a onclick="scrollHelp('t-files')">📁 File Layout</a>
+            </div>
+          </div>
+
+          <!-- PIPELINE -->
+          <div class="help-section" id="t-pipeline">
+            <h2><span class="hic">🔌</span> DATA PIPELINE</h2>
+            <p>End-to-end flow from your broker to the chart on screen:</p>
+            <div class="formula-box">
+              ┌─────────────────────────┐<br>
+              │  MetaTrader 5 (Vantage) │   broker server time = UTC+3<br>
+              └────────────┬────────────┘<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│  copy_rates_from_pos(XAUUSD.sc, H1, 0, 50000)<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+              ┌─────────────────────────┐<br>
+              │  fetch_data.py          │   writes CSV<br>
+              └────────────┬────────────┘<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+              ┌─────────────────────────┐<br>
+              │  data/xauusd_1h.csv     │   ~23k+ rows<br>
+              └────────────┬────────────┘<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│  load_data + enrich (BKK conversion)<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+              ┌─────────────────────────┐<br>
+              │  Flask APIs             │   /api/stats, /api/now, /api/refresh<br>
+              └────────────┬────────────┘<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+              ┌─────────────────────────┐<br>
+              │  Browser (index.html)   │   ECharts + vanilla JS<br>
+              └─────────────────────────┘
+            </div>
+            <p><b>Refresh triggers:</b> manual button click → <code>POST /api/refresh</code> → runs <code>fetch_data.py</code> as subprocess → reloads CSV → re-fetches <code>/api/stats</code> + <code>/api/now</code>. Auto-refresh does the same silently every 60 seconds.</p>
+          </div>
+
+          <!-- DATA SOURCE (kept original id h-data) -->
+          <div class="help-section" id="h-data">
+          <h2><span class="hic">📦</span> DATA SOURCE &amp; COVERAGE</h2>
+          <h3>Where does the data come from?</h3>
+          <p>Bars are fetched directly from <b>MetaTrader 5 (Vantage International broker)</b> using the symbol <code>XAUUSD.sc</code> on the <b>H1 (1-hour) timeframe</b>. The fetch script (<code>fetch_data.py</code>) pulls up to 50,000 bars and saves them to <code>data/xauusd_1h.csv</code>.</p>
+          <p>Each bar has: <code>time (UTC), open, high, low, close, volume</code>. The dataset currently spans <b>~4 years</b> of hourly bars (~23,000+ rows).</p>
+          <div class="example-box">
+            <b>Example bar:</b><br>
+            time: 2024-03-15 14:00 UTC = 21:00 BKK<br>
+            open: 2165.40 · high: 2172.80 · low: 2163.10 · close: 2170.50<br>
+            → Range = 2172.80 − 2163.10 = <b>$9.70</b> · Bull bar (close &gt; open)
+          </div>
+          <h3>How to update data</h3>
+          <p>Click <b>⟳ REFRESH MT5</b> in the top-right. This runs <code>fetch_data.py</code>, reconnects to MT5, downloads new bars, and reloads all charts. Requires MT5 to be running and logged in.</p>
+        </div>
+
+        <!-- TIME ZONE -->
+        <div class="help-section" id="h-tz">
+          <h2><span class="hic">🕐</span> TIME ZONE &amp; TRADING SESSIONS</h2>
+          <h3>Why Bangkok time (UTC+7)?</h3>
+          <p>All hours are converted from UTC to <b>Asia/Bangkok (UTC+7, no DST)</b> because it is a stable, DST-free timezone that aligns well with Asian session traders. Session boundaries never shift with daylight saving.</p>
+          <h3>Trading Sessions in BKK Time</h3>
+          <div class="session-row">
+            <span class="session-chip" style="background:#fff4d6;color:#9a5f00;">Asia 06–14</span>
+            <span><b>06:00–14:59 BKK</b> — Tokyo + Sydney. Gold moves slowly unless there is Asian macro news. Spreads are moderate. Typically the lowest avg range of the day outside of dead hours.</span>
+          </div>
+          <div class="session-row">
+            <span class="session-chip" style="background:#e3eaff;color:#1a3fb8;">London 14–19</span>
+            <span><b>14:00–18:59 BKK</b> — European open drives significant gold flow. Range picks up sharply. Pre-US macro releases often produce spikes during this window.</span>
+          </div>
+          <div class="session-row">
+            <span class="session-chip" style="background:#ede0ff;color:#5a1fa8;">Overlap 19–23</span>
+            <span><b>19:00–22:59 BKK</b> — London + New York both open. <b>Historically the highest-range window of the day.</b> Major US data (NFP, CPI, FOMC) always drops here. The data confirms this is the strongest session for XAUUSD.</span>
+          </div>
+          <div class="session-row">
+            <span class="session-chip" style="background:#d8f5e8;color:#0a5a2a;">NY 23–04</span>
+            <span><b>23:00–03:59 BKK</b> — Purely NY session after London closes. Ranges remain elevated early (23:00–01:00) then taper as NY approaches close. Hours 0 and 23 are the two highest-range hours in the dataset.</span>
+          </div>
+          <div class="warn-box">
+            <b>Note on DST:</b> Although BKK itself has no DST, the US and Europe do. This shifts the session boundaries by ±1 hour seasonally. The dashboard uses fixed BKK-hour boundaries that represent the typical (EDT) season. During winter (EST), NY open is one hour later than shown.
+          </div>
+        </div>
+
+        <!-- SPECIAL HOURS -->
+        <div class="help-section" id="h-special">
+          <h2><span class="hic">⚠</span> SPECIAL HOURS — ALWAYS READ BEFORE TRADING</h2>
+          <div class="help-grid">
+            <div class="help-card">
+              <div class="hc-title"><span class="hc-dot" style="background:#ff5a6b;"></span> Thin Market · 2–3 AM BKK</div>
+              <b>What it is:</b> NY session close + broker rollover window. Spreads widen significantly, liquidity disappears, and slippage is high.<br><br>
+              <b>In the data:</b> These bars exist but have abnormally low or misleading ranges caused by widened spreads, not real price movement.<br><br>
+              <b>Action:</b> Do not enter trades. The dashboard flags these with <code>⚠ NY Close</code> and excludes them from clean stats.
+            </div>
+            <div class="help-card">
+              <div class="hc-title"><span class="hc-dot" style="background:#9a9aa6;"></span> Dead Hour · 4 AM BKK</div>
+              <b>What it is:</b> Vantage MT5 performs its daily reset at broker midnight (UTC+3 00:00) = <b>4:00 AM BKK</b>. The broker never generates an H1 bar for this hour — the candle simply does not exist.<br><br>
+              <b>In the data:</b> Zero rows for BKK hour 4 across all ~4 years.<br><br>
+              <b>Action:</b> No stats are possible. Shown as a gap in all charts. The 3 AM candle ends at 03:59, and the next candle starts at 05:00.
+            </div>
+            <div class="help-card">
+              <div class="hc-title"><span class="hc-dot" style="background:#f5a524;"></span> Monday Gap · 5 AM BKK Mon</div>
+              <b>What it is:</b> The first H1 bar of the trading week (Monday 05:00 BKK ≈ Sunday night open). This bar includes the full weekend gap from Friday's close to Sunday's open.<br><br>
+              <b>In the data:</b> The range is often inflated by the gap, not by real intraday movement.<br><br>
+              <b>Action:</b> Stats for Mon 8 AM include the gap risk. The dashboard flags it and excludes it from "clean" stats used for Top Slots.
+            </div>
+            <div class="help-card">
+              <div class="hc-title"><span class="hc-dot" style="background:#c8c8d8;"></span> Weekend · Sat AM – Sun PM</div>
+              <b>What it is:</b> XAUUSD H1 bars exist on early Saturday (the tail of Friday's NY session in UTC) and resume late Sunday (Asian open ~18:00 BKK). Saturday bars at 00:00–05:59 BKK are valid NY-session bars.<br><br>
+              <b>Action:</b> Saturday midnight–6AM data is used normally. Saturday daytime and Sunday before 18:00 are closed — the dashboard shows a "Market Closed" state.
+            </div>
+          </div>
+          <div class="warn-box">
+            <b>Summary rule:</b> Avoid entering trades at <b>2–3 AM BKK</b> (thin market) and treat <b>4 AM BKK</b> as a hard gap. Do not rely on <b>Monday 5 AM</b> stats for scalp entries — the gap inflates the range.
+          </div>
+        </div>
+
+        <!-- CORE METRICS -->
+        <div class="help-section" id="h-metrics">
+          <h2><span class="hic">📐</span> CORE METRICS &amp; FORMULAS</h2>
+          <p>All metrics are computed per H1 bar, then aggregated by hour-of-day and day-of-week. Dollar values are in <b>USD per troy ounce</b> — the unit in which XAUUSD is quoted.</p>
+
+          <h3>Range ($)</h3>
+          <div class="formula-box">Range = High − Low<br><span class="comment">// Full bar movement from lowest to highest tick. Best measure of how much the market moved in 1 hour.</span></div>
+          <div class="example-box"><b>Example:</b> High = 2310.50, Low = 2297.80 → Range = <b>$12.70</b>. A $10 SL needs the expected range to be &gt; $10 before taking a trade in that hour.</div>
+
+          <h3>Body ($)</h3>
+          <div class="formula-box">Body = |Close − Open|<br><span class="comment">// The actual committed move (candle body). Excludes wicks.</span></div>
+          <p>A large Range but small Body means the candle was whippy — the market moved a lot but rejected most of it. A large Body relative to Range means strong directional conviction.</p>
+
+          <h3>Move % (of price)</h3>
+          <div class="formula-box">Move% = (|Close − Open| / Open) × 100<br><span class="comment">// Body as a percentage of price. More comparable across time than raw $ because gold doubled since 2022.</span></div>
+          <div class="example-box"><b>Example:</b> Open = 2300, Close = 2315 → Body = $15 → Move% = <b>0.65%</b>.<br>This is used by the Regime Banner instead of raw $ range — fair comparison regardless of gold's price level.</div>
+
+          <h3>Bull % (Directional Bias)</h3>
+          <div class="formula-box">Bull% = (bars where Close &gt; Open) / total bars × 100<br><span class="comment">// Bullish bar count as a percentage. 50% = neutral, &gt;55% = bullish bias, &lt;45% = bearish bias.</span></div>
+          <div class="example-box">
+            <b>Example:</b> Hour 21 (9 PM BKK) — sampled 207 times. 118 were bullish closes → Bull% = <b>57%</b> → slight bullish bias during NY overlap.<br>
+            <b>Thresholds used by the dashboard:</b> Bull &gt; 55% → green BULL tag · Bear &lt; 45% → red BEAR tag · 45–55% → blue NEUTRAL tag.
+          </div>
+
+          <h3>Avg Range — How the averages are computed</h3>
+          <div class="formula-box">Avg Range (hour H) = mean(Range) for all bars where BKK_hour = H<br><span class="comment">// All-time simple mean. "Clean" version excludes thin-market and Monday-gap bars.</span></div>
+          <p>Two versions exist side-by-side in the hourly table:</p>
+          <ul>
+            <li><b>Raw avg</b> — includes every bar at that hour, including the gap/thin ones.</li>
+            <li><b>Clean avg</b> — <i>(shown in grey, in parentheses)</i> — excludes thin-market (2–3 AM) and Monday-gap (Mon 5 AM) bars. Use this for actual trading decisions.</li>
+          </ul>
+
+          <h3>Signed Direction %</h3>
+          <div class="formula-box">Direction% = (Close − Open) / Open × 100<br><span class="comment">// Positive = bullish bar, Negative = bearish bar. Used internally for regime comparison.</span></div>
+        </div>
+
+        <!-- CONFIDENCE -->
+        <div class="help-section" id="h-confidence">
+          <h2><span class="hic">🎯</span> CONFIDENCE SCORE</h2>
+          <p>Each stat has a <b>Confidence %</b> that reflects how much you should trust it. It is based purely on <b>sample count</b> — more historical bars at that exact DOW+hour slot = higher confidence.</p>
+          <table class="conf-table">
+            <thead><tr><th>Clean Samples (n)</th><th>Confidence</th><th>Interpretation</th></tr></thead>
+            <tbody>
+              <tr><td>&lt; 10</td><td>10%</td><td>Almost no data — ignore this slot</td></tr>
+              <tr><td>10 – 29</td><td>35%</td><td>Very small sample — treat as anecdote</td></tr>
+              <tr><td>30 – 59</td><td>55%</td><td>Moderate — useful directional hint only</td></tr>
+              <tr><td>60 – 119</td><td>70%</td><td>Good — reasonable to use for planning</td></tr>
+              <tr><td>120 – 249</td><td>85%</td><td>Strong — statistically reliable</td></tr>
+              <tr><td>≥ 250</td><td>95%</td><td>Very strong — use with confidence</td></tr>
+            </tbody>
+          </table>
+          <div class="example-box">
+            <b>Practical rule:</b> For a DOW+hour slot that only exists once per week, 60 samples ≈ 60 weeks ≈ 1 year of data. You need at least 120 samples (2 years) before treating a bias as reliable.
+          </div>
+          <div class="warn-box">
+            <b>Confidence does not mean the move will happen.</b> It means "given enough history, this average is stable." Gold can still gap against any bias due to macro events.
+          </div>
+        </div>
+
+        <!-- P-VALUE -->
+        <div class="help-section" id="t-pvalue">
+          <h2><span class="hic">📊</span> P-VALUE (STATISTICAL SIGNIFICANCE)</h2>
+          <p>For each Top Slots row, a two-sided z-test for proportion tests whether the bull rate differs from coin-flip (50%). Defined in <code>binom_p_value(k, n, p0=0.5)</code> at <code>app.py:103-108</code>.</p>
+          <div class="formula-box">
+            z = (k/n − 0.5) / √(0.5 × 0.5 / n)<br>
+            p = erfc(|z| / √2)<br>
+            <span class="comment">// k = bullish bars, n = total bars at slot. Returns 1.0 if n &lt; 5.</span>
+          </div>
+          <h3>Star thresholds (used in Top Slots filter + display)</h3>
+          <table class="conf-table">
+            <thead><tr><th>Symbol</th><th>p-value</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><span style="color:#2fb96d;font-weight:700;">★★</span></td><td>p &lt; 0.01</td><td>Very strong — &lt;1% chance the bias is random.</td></tr>
+              <tr><td><span style="color:#7ec8a4;font-weight:700;">★</span></td><td>p &lt; 0.05</td><td>Significant — standard academic threshold.</td></tr>
+              <tr><td><span style="color:#f5a524;font-weight:700;">~</span></td><td>p &lt; 0.10</td><td>Borderline — weak evidence.</td></tr>
+              <tr><td><span style="color:#9a9aa6;">ns</span></td><td>p ≥ 0.10</td><td>Not significant — treat as 50/50.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- OPTIMAL -->
+        <div class="help-section" id="t-optimal">
+          <h2><span class="hic">★</span> OPTIMAL EDGE SCORE (Heatmap mode)</h2>
+          <p>Combined score that highlights cells where <b>both</b> the range and the directional bias are strong. Defined at <code>app.py:190-192</code>.</p>
+          <div class="formula-box">
+            range_norm[d,h] = avg_range[d,h] / max(avg_range)<br>
+            bias[d,h]       = |bull_pct[d,h] − 50| / 50<br>
+            optimal[d,h]    = range_norm × bias × 100<br>
+            <span class="comment">// 0 = no edge (flat range OR coin flip); 100 = best possible cell</span>
+          </div>
+          <p>The score punishes cells with either a small range or a neutral bias. A cell only scores high if it has <b>both</b> a large range AND a strong directional tendency.</p>
+        </div>
+
+        <!-- REGIME -->
+        <div class="help-section" id="t-regime">
+          <h2><span class="hic">🌡</span> REGIME DELTA</h2>
+          <p>Powers the colored Regime Banner on Overview. Defined inside <code>compute_now()</code> at <code>app.py:348-361</code>.</p>
+          <div class="formula-box">
+            recent      = df[ local_time ≥ (max_time − lookback_days) ]<br>
+            recent_avg  = mean( recent.move_pct )<br>
+            hist_avg    = mean( df.move_pct )<br>
+            delta_pct   = (recent_avg / hist_avg − 1) × 100<br>
+            <span class="comment">// Uses move_pct (% of price), not raw $ range — fair across years.</span>
+          </div>
+          <h3>Banner thresholds (set in JS render)</h3>
+          <ul>
+            <li><b>🔥 HOT</b>: delta_pct &gt; +25</li>
+            <li><b>📊 NORMAL</b>: −15 ≤ delta_pct ≤ +25</li>
+            <li><b>❄️ COOL</b>: delta_pct &lt; −15</li>
+          </ul>
+          <p>The <b>lookback window</b> is set in Settings → Regime Lookback (default 30 days). Note: the regime always uses the <i>full historical dataset</i> as the baseline, regardless of the Analysis Period filter.</p>
+        </div>
+
+        <!-- API -->
+        <div class="help-section" id="t-api">
+          <h2><span class="hic">🌐</span> API ENDPOINTS</h2>
+
+          <h3><code>GET /api/stats?days=N</code></h3>
+          <p>Returns aggregated statistics for the entire dataset (or last N days). Implementation: <code>app.py:423-442</code>.</p>
+          <div class="formula-box">{<br>
+            &nbsp;&nbsp;by_hour:   [<span class="comment">// 24 rows — hour, avg_range, bull_pct, count, …</span>],<br>
+            &nbsp;&nbsp;by_day:    [<span class="comment">// 7 rows  — dow, avg_range, bull_pct, count, …</span>],<br>
+            &nbsp;&nbsp;heatmap:   { range, move_pct, bull_pct, bear_pct, count, optimal, … },<br>
+            &nbsp;&nbsp;top_slots: [<span class="comment">// all 168 (dow,hour) combos sorted by avg_range</span>],<br>
+            &nbsp;&nbsp;meta:      { symbol, bars, from, to, tz, period_days }<br>
+            }</div>
+
+          <h3><code>GET /api/now?lookback=N</code></h3>
+          <p>Real-time payload for the NOW Hero, Forecast Strip, and Regime Banner. Implementation: <code>app.py:445-453</code> calling <code>compute_now()</code> at <code>app.py:234-415</code>.</p>
+          <div class="formula-box">{<br>
+            &nbsp;&nbsp;now:              { bkk_time, hour, day_name, session, last_price, … },<br>
+            &nbsp;&nbsp;this_slot:        { avg_range, bull_pct, count, confidence },<br>
+            &nbsp;&nbsp;today_forecast:   [<span class="comment">// remaining hours today with stats</span>],<br>
+            &nbsp;&nbsp;next_high_vol:    { hour, dow, avg_range, offset_h } | null,<br>
+            &nbsp;&nbsp;regime:           { recent_avg_move_pct, historical_avg_move_pct, delta_pct, … },<br>
+            &nbsp;&nbsp;today_summary:    { bars, high, low, current, change_pct, … },<br>
+            &nbsp;&nbsp;sessions:         [<span class="comment">// session boundary objects</span>]<br>
+            }</div>
+
+          <h3><code>POST /api/refresh</code></h3>
+          <p>Runs <code>fetch_data.py</code> as a subprocess (timeout 120s) and rewrites the CSV. Implementation: <code>app.py:456-466</code>. Returns <code>{ok: true, output: ...}</code> on success or <code>{error: ...}</code> with HTTP 500 on failure (MT5 not running, symbol not in Market Watch, etc.).</p>
+          <p>This endpoint is invoked by:</p>
+          <ul>
+            <li><b>Manual refresh</b> — user clicks <span class="kbd">⟳ REFRESH MT5</span> button.</li>
+            <li><b>Auto-refresh</b> — every 60 seconds while <b>AUTO ON</b> is enabled. Silent (no UI toast) unless 2 consecutive failures occur.</li>
+          </ul>
+        </div>
+
+        <!-- FILES -->
+        <div class="help-section" id="t-files">
+          <h2><span class="hic">📁</span> FILE LAYOUT</h2>
+          <div class="formula-box">
+            time data/<br>
+            ├── app.py                <span class="comment"># Flask app, all calc functions, 3 API routes</span><br>
+            ├── fetch_data.py         <span class="comment"># MT5 fetcher → CSV writer</span><br>
+            ├── data/<br>
+            │   └── xauusd_1h.csv     <span class="comment"># cached H1 bars (UTC+3 timestamps)</span><br>
+            └── templates/<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;└── index.html        <span class="comment"># the entire UI — HTML + CSS + JS in one file</span>
+          </div>
+          <h3>Run locally</h3>
+          <div class="formula-box">
+            python fetch_data.py   <span class="comment"># first-time data fetch (creates CSV)</span><br>
+            python app.py          <span class="comment"># serves dashboard on http://localhost:5050</span>
+          </div>
+          <h3>Key function index</h3>
+          <table class="conf-table">
+            <thead><tr><th>Function</th><th>Location</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>load_data()</code></td><td>app.py:42-51</td><td>Read CSV, apply UTC+3 timezone</td></tr>
+              <tr><td><code>enrich()</code></td><td>app.py:54-76</td><td>Add hour/dow/range/body/bull/skip_bar columns</td></tr>
+              <tr><td><code>session_for(h)</code></td><td>app.py:79-90</td><td>Map BKK hour → session name</td></tr>
+              <tr><td><code>confidence(n)</code></td><td>app.py:93-100</td><td>Sample count → trust %</td></tr>
+              <tr><td><code>binom_p_value()</code></td><td>app.py:103-108</td><td>Two-sided z-test for proportion</td></tr>
+              <tr><td><code>compute_stats()</code></td><td>app.py:111-231</td><td>By-hour, by-day, heatmap, top-slots aggregations</td></tr>
+              <tr><td><code>compute_now()</code></td><td>app.py:234-415</td><td>Real-time NOW payload + forecast + regime</td></tr>
+              <tr><td><code>fetch()</code></td><td>fetch_data.py:18-42</td><td>MT5 → DataFrame → CSV</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        </div><!-- /#help-view-tech -->
+
+      </div><!-- /.help-wrap -->
+    </div><!-- /#panel-help -->
 
     <!-- ============ HOURLY PANEL ============ -->
     <div class="panel" id="panel-hourly">
       <div class="grid">
-        <div class="card chart-card">
+        <div class="card chart-card" data-help="h-hourly-charts">
           <div class="card-header"><span>AVG RANGE BY HOUR</span></div>
           <div class="chart-box-md" id="ch-hour-range"></div>
         </div>
-        <div class="card chart-card">
+        <div class="card chart-card" data-help="h-hourly-charts">
           <div class="card-header"><span>BULLISH % BY HOUR</span></div>
           <div class="chart-box-md" id="ch-hour-bull"></div>
         </div>
       </div>
-      <div class="card" style="margin-top:12px;">
+      <div class="card" style="margin-top:12px;" data-help="h-hourly-table">
         <div class="card-header"><span>HOURLY STATS</span></div>
         <div class="table-wrap">
           <table id="tbl-hour">
             <thead><tr>
-              <th>Hour (BKK)</th><th>Avg Range</th><th>Avg Body</th>
-              <th>Move %</th><th>Bull %</th><th>Samples</th><th>Bias</th>
+              <th data-help="h-metrics">Hour (BKK)</th><th data-help="h-metrics">Avg Range</th><th data-help="h-metrics">Avg Body</th>
+              <th data-help="h-metrics">Move %</th><th data-help="h-metrics">Bull %</th><th data-help="h-metrics">Bear %</th><th data-help="h-confidence">Samples</th><th data-help="h-metrics">Bias</th>
             </tr></thead>
             <tbody></tbody>
           </table>
@@ -643,22 +1672,22 @@
     <!-- ============ DAILY PANEL ============ -->
     <div class="panel" id="panel-daily">
       <div class="grid">
-        <div class="card chart-card">
+        <div class="card chart-card" data-help="h-daily-charts">
           <div class="card-header"><span>AVG RANGE BY DAY</span></div>
           <div class="chart-box-md" id="ch-day-range"></div>
         </div>
-        <div class="card chart-card">
+        <div class="card chart-card" data-help="h-daily-charts">
           <div class="card-header"><span>BULLISH % BY DAY</span></div>
           <div class="chart-box-md" id="ch-day-bull"></div>
         </div>
       </div>
-      <div class="card" style="margin-top:12px;">
+      <div class="card" style="margin-top:12px;" data-help="h-daily-table">
         <div class="card-header"><span>DAILY STATS</span></div>
         <div class="table-wrap">
           <table id="tbl-day">
             <thead><tr>
-              <th>Day</th><th>Avg Range</th><th>Move %</th>
-              <th>Bull %</th><th>Samples</th><th>Bias</th>
+              <th data-help="h-daily">Day</th><th data-help="h-metrics">Avg Range</th><th data-help="h-metrics">Move %</th>
+              <th data-help="h-metrics">Bull %</th><th data-help="h-metrics">Bear %</th><th data-help="h-confidence">Samples</th><th data-help="h-metrics">Bias</th>
             </tr></thead>
             <tbody></tbody>
           </table>
@@ -668,28 +1697,82 @@
 
     <!-- ============ TOP SLOTS PANEL ============ -->
     <div class="panel" id="panel-top">
-      <div class="card">
-        <div class="card-header"><span>TOP 20 ACTIVE HOUR × DAY COMBINATIONS</span></div>
+      <div class="card" data-help="h-top">
+        <div class="card-header">
+          <span>TOP 20 ACTIVE HOUR × DAY COMBINATIONS</span>
+          <span style="font-size:11px;color:var(--muted);font-weight:500;">
+            Thin-market (2–3 AM) &amp; Monday-gap bars excluded &nbsp;|&nbsp;
+            P-Value: <span style="color:#2fb96d;font-weight:700;">★★</span>&lt;0.01 &nbsp;<span style="color:#7ec8a4;font-weight:700;">★</span>&lt;0.05 &nbsp;<span style="color:#f5a524;font-weight:700;">~</span>&lt;0.10 &nbsp;<span style="color:#9a9aa6;">ns</span>=no edge
+          </span>
+        </div>
+        <!-- Filter bar -->
+        <div class="filter-bar" id="top-filters">
+          <div class="filter-group">
+            <span class="filter-label">SESSION</span>
+            <span class="fb on" data-f="session" data-v="all"   onclick="topFilter('session','all',this)">All</span>
+            <span class="fb"    data-f="session" data-v="Asia"          onclick="topFilter('session','Asia',this)">Asia</span>
+            <span class="fb"    data-f="session" data-v="London"        onclick="topFilter('session','London',this)">London</span>
+            <span class="fb"    data-f="session" data-v="NY"            onclick="topFilter('session','NY',this)">NY</span>
+            <span class="fb"    data-f="session" data-v="London-NY OVL" onclick="topFilter('session','London-NY OVL',this)">Overlap</span>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">DAY</span>
+            <span class="fb on" data-f="day" data-v="all" onclick="topFilter('day','all',this)">All</span>
+            <span class="fb"    data-f="day" data-v="0"   onclick="topFilter('day','0',this)">Mon</span>
+            <span class="fb"    data-f="day" data-v="1"   onclick="topFilter('day','1',this)">Tue</span>
+            <span class="fb"    data-f="day" data-v="2"   onclick="topFilter('day','2',this)">Wed</span>
+            <span class="fb"    data-f="day" data-v="3"   onclick="topFilter('day','3',this)">Thu</span>
+            <span class="fb"    data-f="day" data-v="4"   onclick="topFilter('day','4',this)">Fri</span>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">BIAS</span>
+            <span class="fb on"      data-f="bias" data-v="all"     onclick="topFilter('bias','all',this)">All</span>
+            <span class="fb"         data-f="bias" data-v="bull"    onclick="topFilter('bias','bull',this)">Bull</span>
+            <span class="fb"         data-f="bias" data-v="bear"    onclick="topFilter('bias','bear',this)">Bear</span>
+            <span class="fb"         data-f="bias" data-v="neutral" onclick="topFilter('bias','neutral',this)">Neutral</span>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">RELIABILITY</span>
+            <span class="fb on"  data-f="sig" data-v="all"  onclick="topFilter('sig','all',this)">All</span>
+            <span class="fb"     data-f="sig" data-v="0.01" onclick="topFilter('sig','0.01',this)">★★ p&lt;0.01</span>
+            <span class="fb"     data-f="sig" data-v="0.05" onclick="topFilter('sig','0.05',this)">★ p&lt;0.05</span>
+            <span class="fb"     data-f="sig" data-v="0.10" onclick="topFilter('sig','0.10',this)">~ p&lt;0.10</span>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">MIN SAMPLES</span>
+            <span class="fb on"  data-f="minN" data-v="0"   onclick="topFilter('minN','0',this)">All</span>
+            <span class="fb"     data-f="minN" data-v="20"  onclick="topFilter('minN','20',this)">≥20</span>
+            <span class="fb"     data-f="minN" data-v="30"  onclick="topFilter('minN','30',this)">≥30</span>
+            <span class="fb"     data-f="minN" data-v="50"  onclick="topFilter('minN','50',this)">≥50</span>
+          </div>
+          <span class="top-count" id="top-slot-count"></span>
+        </div>
+
         <div class="table-wrap">
           <table id="tbl-top">
             <thead><tr>
-              <th>#</th><th>Day</th><th>Hour (BKK)</th><th>Avg Range</th>
-              <th>Move %</th><th>Bull %</th><th>Samples</th><th>Bias</th>
+              <th>#</th><th>Day</th><th>Hour (BKK)</th><th>Session</th><th>Avg Range</th>
+              <th>Move %</th><th>Bull %</th><th>Bear %</th><th>Samples</th><th>Bias</th><th>P-Value</th>
             </tr></thead>
             <tbody></tbody>
           </table>
         </div>
       </div>
     </div>
+
   </main>
 </div>
 
 <div id="toast"></div>
+<div id="help-tooltip"><span class="tip-icon">?</span> <span id="help-tooltip-text">View in Help</span></div>
 
 <script>
 let DATA = null;
 let NOW = null;
 let hmMode = 'range';
+let hmShowLabels = true;
+let PERIOD_DAYS = parseInt(localStorage.getItem('period_days') || '0', 10);
+let LOOKBACK_DAYS = parseInt(localStorage.getItem('lookback_days') || '30', 10);
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const SESSION_COLORS = {
@@ -706,43 +1789,100 @@ function fmtHour(h) {
   if (h === 12) return '12PM';
   return (h - 12) + 'PM';
 }
-function fmt(v, d=4) { return v != null ? (+v).toFixed(d) : '—'; }
-
-const HOUR_XAXIS = { tickangle: -45 };
-
-// Build Plotly background shapes for session bands (assumes x-axis is fmtHour labels)
-function sessionShapes() {
-  const sessions = [
-    { name: 'Asia',   start: 6,  end: 14, color: 'rgba(245,165,36,0.07)' },
-    { name: 'London', start: 14, end: 19, color: 'rgba(47,95,255,0.07)' },
-    { name: 'Overlap',start: 19, end: 23, color: 'rgba(154,77,255,0.10)' },
-    { name: 'NY',     start: 23, end: 24, color: 'rgba(47,185,109,0.07)' },
-    { name: 'NY-late',start: 0,  end: 4,  color: 'rgba(47,185,109,0.07)' },
-  ];
-  return sessions.map(s => ({
-    type: 'rect', xref: 'x', yref: 'paper',
-    x0: s.start - 0.5, x1: s.end - 0.5, y0: 0, y1: 1,
-    fillcolor: s.color, line: { width: 0 }, layer: 'below',
-  }));
+const HOUR_ORDER = [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0,1,2,3,4];
+function sortFromHour5(arr) {
+  return [...arr].sort((a,b) => HOUR_ORDER.indexOf(a.hour) - HOUR_ORDER.indexOf(b.hour));
 }
-function sessionAnnotations() {
-  return [
-    { x: 9.5,  y: 1.02, xref: 'x', yref: 'paper', text: 'ASIA',    showarrow: false, font: { size: 9, color: '#b87b00' } },
-    { x: 16,   y: 1.02, xref: 'x', yref: 'paper', text: 'LONDON',  showarrow: false, font: { size: 9, color: '#2f5fff' } },
-    { x: 20.5, y: 1.02, xref: 'x', yref: 'paper', text: 'OVERLAP', showarrow: false, font: { size: 9, color: '#7a36cc' } },
-    { x: 1.5,  y: 1.02, xref: 'x', yref: 'paper', text: 'NY',      showarrow: false, font: { size: 9, color: '#1a8a4a' } },
-  ];
+function fmt(v, d=2) { return v != null ? (+v).toFixed(d) : '—'; }
+
+/* ─── ECharts helpers (DataZoom Slider + Brush) ────────────────────── */
+const EC = {};  // chart instance registry, keyed by element id
+
+function ecGet(id) {
+  let inst = EC[id];
+  if (inst && !inst.isDisposed()) return inst;
+  const el = document.getElementById(id);
+  if (!el) return null;
+  inst = echarts.init(el, null, { renderer: 'canvas' });
+  EC[id] = inst;
+  // Resize whenever the window or its hidden tab becomes visible.
+  if (!ecGet._wired) {
+    window.addEventListener('resize', () => {
+      Object.values(EC).forEach(c => c && !c.isDisposed() && c.resize());
+    });
+    ecGet._wired = true;
+  }
+  return inst;
 }
 
-const CFG = { responsive: true, displayModeBar: false };
-const LAYOUT_BASE = {
-  paper_bgcolor: 'transparent',
-  plot_bgcolor: 'transparent',
-  font: { color: '#555', family: 'Inter, system-ui, sans-serif', size: 11 },
-  margin: { t: 10, r: 10, b: 40, l: 48 },
-  xaxis: { gridcolor: '#e8e8ee', zerolinecolor: '#e8e8ee', linecolor: '#d0d0d8', tickfont: { color: '#888' } },
-  yaxis: { gridcolor: '#e8e8ee', zerolinecolor: '#e8e8ee', linecolor: '#d0d0d8', tickfont: { color: '#888' } },
-};
+// DataZoom config block that every chart receives (no toolbar icons).
+function ecZoomBrush({ orient = 'horizontal', tall = false } = {}) {
+  return {
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: false },
+      {
+        type: 'slider', xAxisIndex: 0, start: 0, end: 100,
+        bottom: tall ? 26 : 6, height: tall ? 22 : 18,
+        borderColor: '#e3e6ec',
+        backgroundColor: '#fafbff',
+        fillerColor: 'rgba(47,95,255,0.10)',
+        handleStyle: { color: '#2f5fff', borderColor: '#1a3fb8' },
+        moveHandleStyle: { color: '#2f5fff', opacity: 0.6 },
+        textStyle: { color: '#666', fontSize: 9 },
+        labelFormatter: v => v,
+        showDetail: false,
+        brushSelect: false,
+      },
+    ],
+  };
+}
+
+// Background session bands (BKK hours) as ECharts markArea.
+// Uses named category labels so ordering doesn't affect band placement.
+function ecSessionMarkArea(_categories) {
+  const bands = [
+    { name: 'Asia',    start: 6,  end: 13, color: 'rgba(245,165,36,0.07)' },
+    { name: 'London',  start: 14, end: 18, color: 'rgba(47,95,255,0.07)'  },
+    { name: 'Overlap', start: 19, end: 22, color: 'rgba(154,77,255,0.10)' },
+    { name: 'NY',      start: 23, end: 23, color: 'rgba(47,185,109,0.07)' },
+    { name: 'NY-l',    start: 0,  end: 3,  color: 'rgba(47,185,109,0.07)' },
+  ];
+  return {
+    silent: true,
+    itemStyle: { borderWidth: 0 },
+    data: bands.map(b => [
+      { xAxis: fmtHour(b.start), itemStyle: { color: b.color } },
+      { xAxis: fmtHour(b.end) },
+    ]),
+  };
+}
+
+// Standard tooltip + grid for stat charts
+function ecBaseLayout({ leftPad = 48, bottomPad = 56, topPad = 26 } = {}) {
+  return {
+    backgroundColor: 'transparent',
+    animation: false,
+    textStyle: { fontFamily: 'Inter, system-ui, sans-serif', color: '#555', fontSize: 11 },
+    grid: { left: leftPad, right: 14, top: topPad, bottom: bottomPad, containLabel: false },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow', label: { backgroundColor: '#2f5fff' } },
+      backgroundColor: 'rgba(255,255,255,0.96)',
+      borderColor: '#e3e6ec',
+      textStyle: { color: '#1a1a2e', fontSize: 11 },
+      extraCssText: 'box-shadow:0 4px 14px rgba(0,0,0,0.10);',
+      valueFormatter: v => v != null ? (+v).toFixed(2) : '—',
+    },
+  };
+}
+
+// Render a tiny "brushed-stats" line under a chart container, when supplied.
+function ecRenderBrushStats(containerSelector, idxs, payload) {
+  const host = document.querySelector(containerSelector);
+  if (!host) return;
+  if (!idxs.length) { host.innerHTML = ''; return; }
+  host.innerHTML = payload;
+}
 
 function toast(msg, ms=3000) {
   const el = document.getElementById('toast');
@@ -758,9 +1898,11 @@ function setTab(name, navEl) {
     p.classList.toggle('active', p.id === 'panel-' + name);
   });
   if (DATA) renderTab(name);
+  // ECharts needs an explicit resize when its container becomes visible (tab switch)
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
 }
 function setTabByName(name) {
-  const map = { overview: 0, heatmap: 1, hourly: 2, daily: 3, top: 4 };
+  const map = { overview: 0, heatmap: 1, hourly: 2, daily: 3, top: 4, settings: 5, help: 6 };
   const li = document.querySelectorAll('.nav li')[map[name]];
   setTab(name, li);
 }
@@ -774,9 +1916,11 @@ function setHeatmap(mode, btn) {
 
 async function loadStats() {
   try {
+    const statsUrl = '/api/stats' + (PERIOD_DAYS > 0 ? ('?days=' + PERIOD_DAYS) : '');
+    const nowUrl   = '/api/now?lookback=' + LOOKBACK_DAYS + (PERIOD_DAYS > 0 ? '&days=' + PERIOD_DAYS : '');
     const [rStats, rNow] = await Promise.all([
-      fetch('/api/stats'),
-      fetch('/api/now'),
+      fetch(statsUrl),
+      fetch(nowUrl),
     ]);
     if (!rStats.ok) {
       const j = await rStats.json();
@@ -792,23 +1936,103 @@ async function loadStats() {
 
 async function loadNowOnly() {
   try {
-    const r = await fetch('/api/now');
+    const r = await fetch('/api/now?lookback=' + LOOKBACK_DAYS + (PERIOD_DAYS > 0 ? '&days=' + PERIOD_DAYS : ''));
     if (r.ok) { NOW = await r.json(); renderNow(); }
   } catch(e) {}
 }
 
 async function refreshData() {
+  if (refreshInFlight) { toast('Already fetching — please wait…'); return; }
   const btn = document.getElementById('refreshBtn');
   btn.disabled = true; btn.classList.add('loading');
+  refreshInFlight = true;
   toast('Fetching data from MT5…', 60000);
   try {
     const r = await fetch('/api/refresh', { method: 'POST' });
     const j = await r.json();
-    if (!r.ok) { toast('Error: ' + (j.error || 'unknown'), 6000); return; }
+    if (!r.ok) { toast('Error: ' + (j.error || 'unknown'), 6000); consecAutoFailures++; return; }
     toast('Data refreshed!');
     await loadStats();
-  } catch(e) { toast('Refresh failed: ' + e.message, 6000); }
-  finally { btn.disabled = false; btn.classList.remove('loading'); }
+    lastRefreshTs = Date.now();
+    consecAutoFailures = 0;
+  } catch(e) { toast('Refresh failed: ' + e.message, 6000); consecAutoFailures++; }
+  finally {
+    btn.disabled = false; btn.classList.remove('loading');
+    refreshInFlight = false;
+    renderAutoStatus();
+  }
+}
+
+/* ─── Auto-refresh MT5 every 60s ──────────────────────────────────── */
+const AUTO_REFRESH_MS = 60_000;
+let AUTO_REFRESH = localStorage.getItem('auto_refresh') !== '0';  // default ON
+let lastRefreshTs = Date.now();
+let refreshInFlight = false;
+let consecAutoFailures = 0;
+let autoRefreshTimer = null;
+
+async function autoRefreshTick() {
+  if (!AUTO_REFRESH || refreshInFlight) return;
+  refreshInFlight = true;
+  renderAutoStatus();
+  try {
+    const r = await fetch('/api/refresh', { method: 'POST' });
+    if (r.ok) {
+      await loadStats();
+      lastRefreshTs = Date.now();
+      consecAutoFailures = 0;
+    } else {
+      consecAutoFailures++;
+      if (consecAutoFailures >= 2) {
+        const j = await r.json().catch(() => ({}));
+        toast('Auto-refresh failed: ' + (j.error || 'MT5 error'), 8000);
+      }
+    }
+  } catch(e) {
+    consecAutoFailures++;
+    if (consecAutoFailures >= 2) toast('Auto-refresh failed: ' + e.message, 8000);
+  } finally {
+    refreshInFlight = false;
+    renderAutoStatus();
+  }
+}
+
+function startAutoRefresh() {
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+  if (AUTO_REFRESH) autoRefreshTimer = setInterval(autoRefreshTick, AUTO_REFRESH_MS);
+}
+
+function toggleAutoRefresh() {
+  AUTO_REFRESH = !AUTO_REFRESH;
+  localStorage.setItem('auto_refresh', AUTO_REFRESH ? '1' : '0');
+  renderAutoToggle();
+  renderAutoStatus();
+  startAutoRefresh();
+  toast(AUTO_REFRESH ? 'Auto-refresh ON · every 60s' : 'Auto-refresh OFF');
+}
+
+function renderAutoToggle() {
+  const btn = document.getElementById('autoToggle');
+  const lbl = document.getElementById('autoLabel');
+  if (!btn || !lbl) return;
+  btn.classList.toggle('on', AUTO_REFRESH);
+  lbl.textContent = AUTO_REFRESH ? 'AUTO ON' : 'AUTO OFF';
+}
+
+function fmtAgo(sec) {
+  if (sec < 60)    return `${sec}s ago`;
+  if (sec < 3600)  return `${Math.floor(sec/60)}m ago`;
+  return `${Math.floor(sec/3600)}h ago`;
+}
+
+function renderAutoStatus() {
+  const el = document.getElementById('autoStatus');
+  if (!el) return;
+  el.classList.toggle('err', consecAutoFailures >= 2);
+  if (refreshInFlight) { el.textContent = 'syncing…'; return; }
+  if (!AUTO_REFRESH)   { el.textContent = 'auto off'; return; }
+  const sec = Math.max(0, Math.floor((Date.now() - lastRefreshTs) / 1000));
+  el.textContent = `updated ${fmtAgo(sec)}`;
 }
 
 function biasBadge(bp) {
@@ -824,7 +2048,6 @@ function renderAll() {
     `<b>${m.symbol}</b> &nbsp;·&nbsp; ${m.bars.toLocaleString()} bars &nbsp;·&nbsp; ${from} → ${to} &nbsp;·&nbsp; ${m.tz}`;
 
   renderNow();
-  buildKpis();
   renderTab('overview');
 }
 
@@ -865,7 +2088,7 @@ function renderNow() {
     statsEl.innerHTML = `
       <div style="font-size:12px;opacity:.85;line-height:1.6;">
         ${n.thin_market
-          ? '4–5 AM BKK = NY session close + broker rollover.<br>Spreads widen, liquidity dries up.<br><b>Stats here are unreliable.</b>'
+          ? '2–3 AM BKK = NY session close + broker rollover.<br>Spreads widen, liquidity dries up.<br><b>Stats here are unreliable.</b>'
           : 'Monday 5–6 AM BKK = first bars after weekend re-open.<br>Gap risk — price may jump from Friday close.<br><b>Do not use these stats for entries.</b>'}
       </div>`;
     document.getElementById('conf-label').textContent = '0% — skip this hour';
@@ -873,8 +2096,8 @@ function renderNow() {
   } else if (slot.count > 0) {
     const biasCls = slot.bull_pct > 55 ? 'bull' : (slot.bull_pct < 45 ? 'bear' : '');
     statsEl.innerHTML = `
-      <div class="now-stat-row"><span class="lbl">Avg Range</span><span class="val">${slot.avg_range.toFixed(2)} <span style="font-size:11px;opacity:.6;">pts</span></span></div>
-      <div class="now-stat-row"><span class="lbl">Bull bias</span><span class="val ${biasCls}">${slot.bull_pct}%</span></div>
+      <div class="now-stat-row"><span class="lbl">Avg Range</span><span class="val">${slot.avg_range.toFixed(2)} <span style="font-size:11px;opacity:.6;">$</span></span></div>
+      <div class="now-stat-row"><span class="lbl">Bull / Bear</span><span class="val"><span style="color:#2fb96d;">${slot.bull_pct}%▲</span> <span style="color:#ff5a6b;">${slot.bear_pct ?? (100-slot.bull_pct).toFixed(1)}%▼</span></span></div>
       <div class="now-stat-row"><span class="lbl">Move %</span><span class="val">${slot.avg_move_pct}%</span></div>
       ${usedFallback ? `<div style="font-size:10px;opacity:.6;font-style:italic;">(no ${n.day_name} samples · showing all-DOW avg)</div>` : ''}
     `;
@@ -895,39 +2118,12 @@ function renderNow() {
     nv.innerHTML = `
       <div class="head">${v.session} · ${v.day_name}</div>
       <div class="countdown">${fmtHour(v.hour)} <span style="font-size:13px;opacity:.7;">${eta}</span></div>
-      <div class="desc">Expected range <b>${v.avg_range.toFixed(2)} pts</b> · bull ${v.bull_pct}% · n=${v.count}</div>
+      <div class="desc">Expected range <b>${v.avg_range.toFixed(2)} $</b> · bull ${v.bull_pct}% · n=${v.count}</div>
     `;
   } else {
     nv.innerHTML = `<div class="head">No high-vol window soon</div>
       <div class="countdown" style="font-size:14px;opacity:.7;">Market quiet or closed</div>
       <div class="desc">Next 8h all below 1.15× avg range</div>`;
-  }
-
-  // Regime banner
-  const r = NOW.regime;
-  const banner = document.getElementById('regime-banner');
-  banner.className = 'regime-banner';
-  if (r.delta_pct != null) {
-    if (r.delta_pct > 25) {
-      banner.classList.add('hot');
-      banner.innerHTML = `<span class="icon">🔥</span><div>
-        <b>HOT REGIME</b> — Last ${r.lookback_days}d range is
-        <span class="delta">+${r.delta_pct}%</span> vs historical
-        (${r.recent_avg_range} vs ${r.historical_avg_range} pts).
-        Expect bigger moves and wider stops.</div>`;
-    } else if (r.delta_pct < -15) {
-      banner.classList.add('cool');
-      banner.innerHTML = `<span class="icon">❄️</span><div>
-        <b>COOL REGIME</b> — Last ${r.lookback_days}d range is
-        <span class="delta">${r.delta_pct}%</span> vs historical
-        (${r.recent_avg_range} vs ${r.historical_avg_range} pts).
-        Tighter ranges — scale targets down.</div>`;
-    } else {
-      banner.classList.add('normal');
-      banner.innerHTML = `<span class="icon">📊</span><div>
-        <b>NORMAL REGIME</b> — Last ${r.lookback_days}d range matches historical
-        (${r.recent_avg_range} vs ${r.historical_avg_range} pts, Δ ${r.delta_pct >= 0 ? '+' : ''}${r.delta_pct}%).</div>`;
-    }
   }
 
   // Forecast strip
@@ -937,6 +2133,25 @@ function renderNow() {
 function renderForecast() {
   const strip = document.getElementById('forecast-strip');
   const f = NOW.today_forecast;
+  const n = NOW.now;
+
+  // Weekend / market-closed state — no H1 bars generated Saturday afternoon through Sunday evening
+  if (n.is_weekend) {
+    const dayName = n.day_name;
+    const opensMsg = dayName === 'Saturday'
+      ? 'Sunday evening ~18:00 BKK'
+      : (n.hour < 17 ? 'Later today ~18:00 BKK' : 'Shortly — Asian open approaching');
+    strip.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:28px 16px;">
+      <div style="font-size:26px;margin-bottom:8px;">🏖</div>
+      <div style="font-weight:600;color:#555;font-size:14px;">Market Closed · Weekend</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px;">
+        XAUUSD H1 resumes ${opensMsg}.<br>
+        Use this time to review the Heatmap and Top Slots tabs.
+      </div>
+    </div>`;
+    return;
+  }
+
   if (!f || f.length === 0) {
     strip.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:20px;">No hours left today.</div>';
     return;
@@ -946,7 +2161,7 @@ function renderForecast() {
     if (h.dead_hour) {
       return `<div class="forecast-hour"
           style="opacity:.4;border:1px dashed #ccc;background:#f5f5f8;"
-          title="Vantage MT5 broker reset — no bar produced at 7AM BKK (midnight UTC)">
+          title="Vantage MT5 broker reset — no bar produced at 4AM BKK">
         <span class="session-tag" style="color:#999;">–</span>
         <span class="fh-time">${fmtHour(h.hour)}</span>
         <span class="fh-range" style="font-size:10px;color:#999;">RESET</span>
@@ -957,8 +2172,8 @@ function renderForecast() {
     if (h.skip_bar) {
       const label = h.thin_market ? 'NY Close' : 'Mon Gap';
       const tooltip = h.thin_market
-        ? '4–6 AM BKK: NY close + illiquid pre-reset — avoid trading'
-        : '8 AM Mon: first bar after weekend — gap risk';
+        ? '2–3 AM BKK: NY close + illiquid pre-reset — avoid trading'
+        : '5 AM Mon: first bar after weekend — gap risk';
       return `<div class="forecast-hour${h.is_now ? ' now' : ''}"
           style="opacity:.55;border:1px dashed #e0a060;background:#fff8f0;"
           title="${tooltip}">
@@ -976,73 +2191,24 @@ function renderForecast() {
         <span class="fh-lbl">no data</span>
       </div>`;
     }
-    const biasColor = h.bull_pct > 55 ? '#2fb96d' : (h.bull_pct < 45 ? '#ff5a6b' : '#9a9aa6');
     const sessColor = SESSION_COLORS[h.session]?.line || '#9a9aa6';
+    const bearPct = h.bear_pct ?? (100 - h.bull_pct);
     return `<div class="forecast-hour${h.is_now ? ' now' : ''}"
         title="${h.session} · ${h.count} clean samples · conf ${h.confidence}%">
       <span class="session-tag" style="color:${h.is_now ? '#fff' : sessColor};">${h.session.replace('London-NY OVL','OVL').slice(0,4)}</span>
       <span class="fh-time">${fmtHour(h.hour)}</span>
       <span class="fh-range">${h.avg_range.toFixed(1)}</span>
-      <span class="fh-lbl">${h.bull_pct}% bull</span>
-      <div class="bias-bar fh"><span style="width:${h.bull_pct}%;background:${biasColor};"></span></div>
+      <span class="fh-lbl" style="display:flex;gap:3px;justify-content:center;">
+        <span style="color:#2fb96d;">${h.bull_pct}%▲</span>
+        <span style="color:#ff5a6b;">${bearPct}%▼</span>
+      </span>
+      <div class="bias-bar fh" style="background:#ffe0e3;">
+        <span style="width:${h.bull_pct}%;background:#2fb96d;display:block;height:100%;"></span>
+      </div>
     </div>`;
   }).join('');
 }
 
-function buildKpis() {
-  const bh = DATA.by_hour;
-  const bd = DATA.by_day;
-  const topHour = [...bh].sort((a,b) => b.avg_range - a.avg_range)[0];
-  const lowHour = [...bh].sort((a,b) => a.avg_range - b.avg_range)[0];
-  const topDay  = [...bd].sort((a,b) => b.avg_range - a.avg_range)[0];
-  const avgRange = bh.reduce((s,h) => s + h.avg_range, 0) / bh.length;
-  const overallBull = bh.reduce((s,h) => s + h.bull_pct, 0) / bh.length;
-
-  const kpis = [
-    {
-      pill: 'PEAK', pillCls: '',
-      label: 'MOST ACTIVE HOUR', right: 'BKK',
-      val: fmtHour(topHour.hour),
-      rightVal: fmt(topHour.avg_range, 2), rightUnit: 'PTS',
-    },
-    {
-      pill: 'BEST DAY', pillCls: 'active-pill', arrow: true,
-      label: 'TOP SESSION', right: 'AVG',
-      val: topDay.day_name.slice(0,3).toUpperCase(),
-      rightVal: fmt(topDay.avg_range, 2), rightUnit: 'PTS',
-    },
-    {
-      pill: 'QUIET', pillCls: '',
-      label: 'LOWEST HOUR', right: 'BKK',
-      val: fmtHour(lowHour.hour),
-      rightVal: fmt(lowHour.avg_range, 2), rightUnit: 'PTS',
-    },
-    {
-      pill: overallBull > 50 ? 'BULL' : 'BEAR',
-      pillCls: overallBull > 50 ? 'bull' : 'bear',
-      arrow: true,
-      label: 'OVERALL BIAS', right: 'AVG',
-      val: overallBull.toFixed(1) + '%',
-      rightVal: fmt(avgRange, 2), rightUnit: 'PTS',
-    },
-  ];
-
-  document.getElementById('kpi-row').innerHTML = kpis.map(k => `
-    <div class="card kpi">
-      <div class="kpi-header">
-        <span class="pill ${k.pillCls}">${k.pill}</span>
-        ${k.arrow ? '<span class="arrow-up">↗</span>' : ''}
-      </div>
-      <div>
-        <div class="kpi-label"><span>${k.label}</span><span>${k.right}</span></div>
-        <div class="kpi-row">
-          <span class="kpi-value">${k.val}</span>
-          <span class="kpi-value">${k.rightVal}<span class="sup">${k.rightUnit}</span></span>
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
 
 function renderTab(name) {
   if (name === 'overview') drawOverview();
@@ -1050,7 +2216,94 @@ function renderTab(name) {
   if (name === 'hourly') drawHourly();
   if (name === 'daily') drawDaily();
   if (name === 'top') drawTop();
+  if (name === 'settings') renderSettings();
+  // Help panel is static HTML — no dynamic render needed
 }
+
+/* ─── Help sub-view toggle (USER GUIDE / TECHNICAL REFERENCE) ────── */
+let HELP_VIEW = localStorage.getItem('help_view') || 'user';
+
+function setHelpView(name) {
+  HELP_VIEW = (name === 'tech') ? 'tech' : 'user';
+  localStorage.setItem('help_view', HELP_VIEW);
+  document.querySelectorAll('.help-tab').forEach(b => {
+    b.classList.toggle('on', b.dataset.v === HELP_VIEW);
+  });
+  document.querySelectorAll('.help-view').forEach(v => {
+    v.hidden = v.id !== ('help-view-' + HELP_VIEW);
+  });
+}
+
+function scrollHelp(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  // If the target lives in a different sub-view, switch first
+  const view = el.closest('.help-view');
+  if (view) {
+    const name = view.id.replace('help-view-', '');
+    if (name !== HELP_VIEW) setHelpView(name);
+  }
+  // Defer slightly to let the view become visible before scrolling
+  setTimeout(() => {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.remove('help-highlight');
+    void el.offsetWidth; // force reflow so re-adding restarts animation
+    el.classList.add('help-highlight');
+    setTimeout(() => el.classList.remove('help-highlight'), 2100);
+  }, 30);
+}
+
+/* ─── Settings ─────────────────────────────────────────────────────── */
+function applyPeriod(days) {
+  PERIOD_DAYS = days;
+  localStorage.setItem('period_days', String(days));
+  document.querySelectorAll('#period-btns .hm-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.days, 10) === days);
+  });
+  toast(days > 0 ? `Loading last ${days} days…` : 'Loading all data…');
+  loadStats().then(() => { renderSettings(); });
+}
+function applyCustomDays() {
+  const v = parseInt(document.getElementById('custom-days').value, 10);
+  if (!v || v < 7) { toast('Enter ≥ 7 days'); return; }
+  applyPeriod(v);
+}
+function applyLookback(d) {
+  LOOKBACK_DAYS = d;
+  localStorage.setItem('lookback_days', String(d));
+  document.querySelectorAll('#lookback-btns .hm-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.lb, 10) === d);
+  });
+  toast(`Regime lookback: ${d}d`);
+  loadNowOnly().then(() => renderSettings());
+}
+function renderSettings() {
+  // Sync button-active state with current values (handles reload-from-localStorage)
+  document.querySelectorAll('#period-btns .hm-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.days, 10) === PERIOD_DAYS);
+  });
+  document.querySelectorAll('#lookback-btns .hm-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.lb, 10) === LOOKBACK_DAYS);
+  });
+  const m = DATA?.meta;
+  const r = NOW?.regime;
+  document.getElementById('settings-summary').innerHTML = `
+    <div><b>Analysis window:</b> ${PERIOD_DAYS > 0 ? 'last ' + PERIOD_DAYS + ' days' : 'all available data'} · <b>${m ? m.bars.toLocaleString() : '—'} bars</b></div>
+    <div><b>Date range:</b> ${m ? m.from.slice(0,10) + ' → ' + m.to.slice(0,10) : '—'}</div>
+    <div><b>Regime lookback:</b> last ${LOOKBACK_DAYS} days (${r ? r.recent_bars + ' bars' : '—'})</div>
+    <div><b>Timezone:</b> Asia/Bangkok (UTC+7)</div>
+  `;
+  const setInfo = document.getElementById('set-info');
+  if (setInfo && m) setInfo.textContent = m.bars.toLocaleString() + ' bars loaded';
+}
+
+// Delegate clicks on the period/lookback button rows
+document.addEventListener('click', e => {
+  const pb = e.target.closest('#period-btns .hm-btn[data-days]');
+  if (pb) { applyPeriod(parseInt(pb.dataset.days, 10)); return; }
+  const lb = e.target.closest('#lookback-btns .hm-btn[data-lb]');
+  if (lb) { applyLookback(parseInt(lb.dataset.lb, 10)); return; }
+});
 
 /* ─── Overview ─────────────────────────────────────────────────────── */
 function drawOverview() {
@@ -1058,153 +2311,293 @@ function drawOverview() {
   const bd = DATA.by_day;
   const top = DATA.top_slots[0];
 
-  const topHour = [...bh].sort((a,b) => b.avg_range - a.avg_range)[0];
+  // Filter out dead/null hours for KPI display
+  const bhTrade = bh.filter(h => h.avg_range != null && !h.dead_hour && !h.thin_market);
+  const topHour = [...bhTrade].sort((a,b) => b.avg_range - a.avg_range)[0] || bh[0];
   const topDay  = [...bd].sort((a,b) => b.avg_range - a.avg_range)[0];
-  const overallBull = bh.reduce((s,h) => s + h.bull_pct, 0) / bh.length;
+  const overallBull = bhTrade.reduce((s,h) => s + h.bull_pct, 0) / bhTrade.length;
+  const overallBear = bhTrade.reduce((s,h) => s + (h.bear_pct||0), 0) / bhTrade.length;
 
   document.getElementById('overview-hour-stat').innerHTML =
-    `${fmt(topHour.avg_range, 2)}<span class="pct">PTS</span>`;
+    `${fmt(topHour.avg_range, 2)}<span class="pct">$</span>`;
   document.getElementById('overview-day-stat').innerHTML =
-    `${fmt(topDay.avg_range, 2)}<span class="pct">PTS</span>`;
+    `${fmt(topDay.avg_range, 2)}<span class="pct">$</span>`;
   document.getElementById('overview-range-label').textContent =
     `${fmtHour(topHour.hour)} — PEAK`;
 
   document.getElementById('bull-bias-stat').innerHTML =
-    `${overallBull.toFixed(1)}<span class="pct">% BULL</span>`;
-  document.getElementById('trk-coverage').textContent =
-    `${DATA.meta.bars.toLocaleString()} BARS`;
-  document.getElementById('trk-samples').innerHTML =
-    `${(DATA.meta.bars / 1000).toFixed(1)}<span class="pct">K</span>`;
+    `<span style="color:#2fb96d;">${overallBull.toFixed(1)}%▲</span> <span style="font-size:18px;color:#ff5a6b;">${overallBear.toFixed(1)}%▼</span>`;
 
-  document.getElementById('best-slot-stat').innerHTML =
-    `${fmt(top.avg_range, 2)}<span class="pct">PTS</span>`;
-  document.getElementById('best-slot-day').textContent = top.day_name.toUpperCase();
-  document.getElementById('best-slot-hour').textContent = fmtHour(top.hour);
+  // Stat tiles
+  document.getElementById('st-besthour').innerHTML =
+    `${fmt(topHour.avg_range, 2)}<span style="font-size:14px;color:var(--muted);"> $</span>`;
+  document.getElementById('st-besthour-sub').textContent =
+    `${fmtHour(topHour.hour)} · ${topHour.count} samples`;
 
-  // Hourly bar chart — historical bars + recent line overlay + session bands
-  const maxR = Math.max(...bh.map(x => x.avg_range));
+  document.getElementById('st-bestday').innerHTML =
+    `${fmt(topDay.avg_range, 2)}<span style="font-size:14px;color:var(--muted);"> $</span>`;
+  document.getElementById('st-bestday-sub').textContent = topDay.day_name;
+
+  const bullColor = overallBull >= 50 ? '#16a34a' : '#dc2626';
+  document.getElementById('st-bull').innerHTML =
+    `<span style="color:${bullColor};">${overallBull.toFixed(1)}%</span>`;
+  document.getElementById('st-bull-sub').innerHTML =
+    `<span style="color:#dc2626;">${overallBear.toFixed(1)}%</span> bear avg`;
+
+  document.getElementById('st-bars').innerHTML =
+    `${(DATA.meta.bars / 1000).toFixed(1)}<span style="font-size:14px;color:var(--muted);">K</span>`;
+  document.getElementById('st-bars-sub').textContent =
+    DATA.meta.from ? DATA.meta.from.slice(0, 10) + ' →' : '—';
+
+  // Hourly chart — ECharts bar (historical) + line overlay (recent) with session markArea
+  const bh5 = sortFromHour5(bh);
+  const hours = bh5.map(r => fmtHour(r.hour));
+  const maxR = Math.max(...bh5.filter(h => h.avg_range != null).map(x => x.avg_range));
   const curHour = NOW?.now?.hour;
-  const traces = [{
-    name: 'Historical',
-    x: bh.map(r => fmtHour(r.hour)),
-    y: bh.map(r => r.avg_range),
-    type: 'bar',
-    marker: {
-      color: bh.map(r => r.hour === curHour ? '#ff5a6b' : (r.avg_range === maxR ? '#2f5fff' : '#a8bcff')),
+
+  const histBars = bh5.map(r => ({
+    value: r.avg_range,
+    itemStyle: {
+      color: r.hour === curHour ? '#ff5a6b' : (r.avg_range === maxR ? '#2f5fff' : '#a8bcff'),
     },
-    hovertemplate: '%{x}<br>Historical: %{y:.2f} pts<extra></extra>',
+  }));
+  const series = [{
+    name: 'Historical', type: 'bar', data: histBars, barWidth: '70%',
+    markArea: ecSessionMarkArea(hours),
   }];
   if (NOW?.recent_by_hour?.length) {
     const recentMap = Object.fromEntries(NOW.recent_by_hour.map(r => [r.hour, r.avg_range]));
-    traces.push({
-      name: `Last ${NOW.regime.lookback_days}d`,
-      x: bh.map(r => fmtHour(r.hour)),
-      y: bh.map(r => recentMap[r.hour] ?? null),
-      type: 'scatter', mode: 'lines+markers',
-      line: { color: '#ff5a6b', width: 2 },
-      marker: { color: '#ff5a6b', size: 5 },
-      hovertemplate: '%{x}<br>Recent: %{y:.2f} pts<extra></extra>',
+    series.push({
+      name: `Last ${NOW.regime.lookback_days}d`, type: 'line', smooth: false,
+      data: bh5.map(r => recentMap[r.hour] ?? null),
+      lineStyle: { color: '#ff5a6b', width: 2 },
+      itemStyle: { color: '#ff5a6b' }, symbolSize: 5,
     });
   }
-  Plotly.newPlot('ch-overview-hour', traces, {
-    ...LAYOUT_BASE,
-    xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
-    shapes: sessionShapes(),
-    annotations: sessionAnnotations(),
-    showlegend: true,
-    legend: { orientation: 'h', y: -0.25, font: { size: 10 } },
-    margin: { t: 24, r: 10, b: 60, l: 48 },
-  }, CFG);
+  ecGet('ch-overview-hour').setOption({
+    ...ecBaseLayout({ bottomPad: 78, topPad: 32 }),
+    ...ecZoomBrush({ tall: true }),
+    legend: { bottom: 4, left: 'center', textStyle: { fontSize: 10, color: '#666' } },
+    xAxis: { type: 'category', data: hours, axisLabel: { color: '#888', fontSize: 10, rotate: -45 }, axisLine: { lineStyle: { color: '#d0d0d8' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#e8e8ee' } }, axisLabel: { color: '#888' } },
+    series,
+  }, true);
 
   // Daily line chart
-  Plotly.newPlot('ch-overview-day', [{
-    x: bd.map(r => r.day_name.slice(0,3)),
-    y: bd.map(r => r.avg_range),
-    type: 'scatter', mode: 'lines+markers',
-    line: { color: '#2f5fff', width: 2, dash: 'dot' },
-    marker: { color: '#2f5fff', size: 8 },
-    hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
-  }], LAYOUT_BASE, CFG);
+  const dayLabels = bd.map(r => r.day_name.slice(0,3));
+  ecGet('ch-overview-day').setOption({
+    ...ecBaseLayout({ bottomPad: 50 }),
+    ...ecZoomBrush(),
+    xAxis: { type: 'category', data: dayLabels, axisLabel: { color: '#888' } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#e8e8ee' } }, axisLabel: { color: '#888' } },
+    series: [{
+      type: 'line', smooth: false, symbol: 'circle', symbolSize: 8,
+      data: bd.map(r => r.avg_range),
+      lineStyle: { color: '#2f5fff', width: 2, type: 'dotted' },
+      itemStyle: { color: '#2f5fff' },
+    }],
+  }, true);
 
-  // Bias chart with session bands
-  Plotly.newPlot('ch-bias', [{
-    x: bh.map(r => fmtHour(r.hour)),
-    y: bh.map(r => r.bull_pct - 50),
-    type: 'bar',
-    marker: {
-      color: bh.map(r => r.hour === curHour
-        ? '#2f5fff'
-        : (r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b'))
+  // Bias chart — Bull% − 50 per hour, coloured green/red, session bands
+  const biasData = bh5.map(r => ({
+    value: r.bull_pct != null ? r.bull_pct - 50 : null,
+    itemStyle: {
+      color: r.hour === curHour ? '#2f5fff' : (r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b'),
     },
-    hovertemplate: '%{x}<br>Bull %{y:.1f}%<extra></extra>',
-  }], { ...LAYOUT_BASE,
-       xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
-       yaxis: { ...LAYOUT_BASE.yaxis, title: { text: 'Δ from 50%', font: { size: 9 } } },
-       shapes: sessionShapes(),
-       annotations: sessionAnnotations(),
-       margin: { t: 24, r: 10, b: 60, l: 48 },
-     }, CFG);
+  }));
+  ecGet('ch-bias').setOption({
+    ...ecBaseLayout({ bottomPad: 78, topPad: 32 }),
+    ...ecZoomBrush({ tall: true }),
+    xAxis: { type: 'category', data: hours, axisLabel: { color: '#888', fontSize: 10, rotate: -45 }, axisLine: { lineStyle: { color: '#d0d0d8' } } },
+    yAxis: { type: 'value', name: 'Δ from 50%', nameTextStyle: { fontSize: 9, color: '#999' }, splitLine: { lineStyle: { color: '#e8e8ee' } }, axisLabel: { color: '#888' } },
+    series: [{
+      type: 'bar', data: biasData, barWidth: '70%',
+      markArea: ecSessionMarkArea(hours),
+    }],
+  }, true);
 }
 
 /* ─── Heatmap ──────────────────────────────────────────────────────── */
+function toggleHmLabels(btn) {
+  hmShowLabels = !hmShowLabels;
+  btn.classList.toggle('active', hmShowLabels);
+  btn.textContent = hmShowLabels ? 'HIDE VALUES' : 'SHOW VALUES';
+  if (DATA) drawHeatmap();
+}
+
 function drawHeatmap() {
   const hm = DATA.heatmap;
-  const matrix = hm[hmMode];
-  const labels = { range: 'Avg Range', move_pct: 'Move %', bull_pct: 'Bull %', count: 'Samples' };
-  const isBull = hmMode === 'bull_pct';
-  const cs = isBull
-    ? [[0,'#ff5a6b'],[0.5,'#f0f0f4'],[1,'#2fb96d']]
-    : [[0,'#f5f6f8'],[0.3,'#c5d2ff'],[0.6,'#5a7aff'],[0.85,'#2f5fff'],[1,'#1a3fb8']];
-  const zmid = isBull ? 50 : undefined;
+  const isBullBear = hmMode === 'bull_bear';
+  const isOptimal  = hmMode === 'optimal';
+  const matrix = isBullBear ? hm['bull_pct'] : hm[hmMode];
+  const labels = { range: 'Avg Range ($)', move_pct: 'Move %', bull_bear: 'Bull/Bear %', count: 'Samples', optimal: 'Edge Score (0–100)' };
+  const isCount = hmMode === 'count';
 
-  Plotly.newPlot('ch-heatmap', [{
-    z: matrix, x: hm.hours.map(fmtHour), y: hm.days,
-    type: 'heatmap', colorscale: cs, zmid,
-    hoverongaps: false,
-    hovertemplate: '%{y} %{x}<br>' + labels[hmMode] + ': %{z:.3f}<extra></extra>',
-    colorbar: { thickness: 12, tickfont: { color: '#666', size: 9 } },
-  }], {
-    ...LAYOUT_BASE,
-    margin: { t: 10, r: 70, b: 50, l: 60 },
-    xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
-    yaxis: { ...LAYOUT_BASE.yaxis, autorange: 'reversed' },
-  }, CFG);
+  // Build flat data for ECharts: [hourIdx, dayIdx, value] — ordered from 5 AM
+  const flat = [];
+  const flatVals = [];
+  for (let d = 0; d < matrix.length; d++) {
+    for (let xi = 0; xi < HOUR_ORDER.length; xi++) {
+      const h = HOUR_ORDER[xi];
+      const v = matrix[d][h];
+      if (v != null && !isNaN(v)) {
+        flat.push([xi, d, v]);
+        flatVals.push(v);
+      } else {
+        flat.push([xi, d, '-']);
+      }
+    }
+  }
+  const dmin = flatVals.length ? Math.min(...flatVals) : 0;
+  const dmax = flatVals.length ? Math.max(...flatVals) : 1;
+  // Bull/bear: symmetric around 50 so white always sits at the neutral midpoint
+  const zmin = isBullBear ? 50 - Math.max(50 - dmin, dmax - 50, 5) : dmin;
+  const zmax = isBullBear ? 50 + Math.max(50 - dmin, dmax - 50, 5) : dmax;
+  const decimals = isCount ? 0 : (isBullBear || isOptimal) ? 1 : 2;
+
+  const hourLabels = HOUR_ORDER.map(fmtHour);
+  const dayLabels  = hm.days;
+
+  // Color mapping per mode
+  let vmColors;
+  if (isBullBear)   vmColors = ['#dc2626', '#f87171', '#fafafa', '#4ade80', '#16a34a'];
+  else if (isOptimal) vmColors = ['#f0fdf4', '#bbf7d0', '#4ade80', '#16a34a', '#14532d'];
+  else              vmColors = ['#dbeafe', '#60a5fa', '#34d399', '#fbbf24', '#f97316', '#dc2626'];
+
+  ecGet('ch-heatmap').setOption({
+    ...ecBaseLayout({ leftPad: 70, bottomPad: 86, topPad: 50 }),
+    ...ecZoomBrush({ tall: true }),
+    grid: { left: 70, right: 90, top: 50, bottom: 86, containLabel: false },
+    xAxis: {
+      type: 'category', data: hourLabels, position: 'top',
+      axisLabel: { color: '#666', fontSize: 10, rotate: -45 },
+      axisLine: { lineStyle: { color: '#d0d0d8' } },
+      splitArea: { show: true },
+    },
+    yAxis: {
+      type: 'category', data: dayLabels, inverse: true,
+      axisLabel: { color: '#333', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#d0d0d8' } },
+      splitArea: { show: true },
+    },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0, start: 0, end: 100 },
+      { type: 'inside', yAxisIndex: 0, start: 0, end: 100 },
+      { type: 'slider', xAxisIndex: 0, start: 0, end: 100, bottom: 24, height: 18, fillerColor: 'rgba(249,115,22,0.15)', borderColor: '#e3e6ec', handleStyle: { color: '#f97316', borderColor: '#dc2626' }, textStyle: { color: '#666', fontSize: 9 }, showDetail: false },
+      { type: 'slider', yAxisIndex: 0, start: 0, end: 100, right: 8, width: 14, fillerColor: 'rgba(249,115,22,0.15)', borderColor: '#e3e6ec', handleStyle: { color: '#f97316', borderColor: '#dc2626' }, textStyle: { color: '#666', fontSize: 9 }, showDetail: false },
+    ],
+    visualMap: {
+      min: zmin, max: zmax, calculable: true,
+      orient: 'horizontal', left: 'center', bottom: 0,
+      itemWidth: 12, itemHeight: 120,
+      inRange: { color: vmColors },
+      text: isBullBear ? ['Bull 100%', 'Bear 100%'] : isOptimal ? ['Score 100', 'Score 0'] : [labels[hmMode], ''],
+      textStyle: { color: '#666', fontSize: 10 },
+    },
+    tooltip: {
+      ...ecBaseLayout().tooltip,
+      trigger: 'item',
+      formatter: p => {
+        const v = p.value[2];
+        const hdr = `<b>${dayLabels[p.value[1]]} ${hourLabels[p.value[0]]}</b>`;
+        if (v === '-' || v == null) return `${hdr}<br>no data`;
+        if (isBullBear) {
+          const bull = (+v).toFixed(1);
+          const bear = (100 - +v).toFixed(1);
+          return `${hdr}<br><span style="color:#2fb96d;">▲ Bull: ${bull}%</span><br><span style="color:#ff5a6b;">▼ Bear: ${bear}%</span>`;
+        }
+        if (isOptimal) {
+          const d = p.value[1], xi = p.value[0];
+          const rawRange = (hm.range[d] && hm.range[d][HOUR_ORDER[xi]]) ?? null;
+          const bull = (hm.bull_pct[d] && hm.bull_pct[d][HOUR_ORDER[xi]]) ?? null;
+          const bias = bull != null ? Math.abs(bull - 50).toFixed(1) : '—';
+          const rng  = rawRange != null ? (+rawRange).toFixed(2) : '—';
+          const dir  = bull != null ? (bull > 50 ? `<span style="color:#4ade80;">▲ ${bull.toFixed(1)}% bull</span>` : `<span style="color:#f87171;">▼ ${(100-bull).toFixed(1)}% bear</span>`) : '—';
+          return `${hdr}<br><b>Edge: ${(+v).toFixed(1)}</b><br>Avg Range: $${rng}<br>Bias: ${bias}% off-center<br>${dir}`;
+        }
+        return `${hdr}<br>${labels[hmMode]}: ${(+v).toFixed(decimals)}`;
+      },
+    },
+    series: [{
+      type: 'heatmap', data: flat,
+      label: {
+        show: hmShowLabels, fontSize: 9, color: '#1a1a2e',
+        formatter: p => {
+          if (p.value[2] === '-') return '';
+          if (isBullBear) {
+            const bull = (+p.value[2]).toFixed(0);
+            const bear = (100 - +p.value[2]).toFixed(0);
+            return `${bull}/${bear}`;
+          }
+          return (+p.value[2]).toFixed(decimals);
+        },
+      },
+      itemStyle: { borderColor: '#fff', borderWidth: 1 },
+      emphasis: { itemStyle: { borderColor: '#1a1a2e', borderWidth: 1.5 } },
+    }],
+  }, true);
+
+  const dec = isCount ? 0 : isBullBear ? 1 : 2;
+  const sortable = [];
+  for (let d = 0; d < matrix.length; d++) {
+    for (let h = 0; h < matrix[d].length; h++) {
+      const v = matrix[d][h];
+      if (v != null && !isNaN(v)) sortable.push({ d, h, v });
+    }
+  }
+  sortable.sort((a,b) => b.v - a.v);
+  const hi = sortable[0], lo = sortable[sortable.length - 1];
+  const info = document.getElementById('hm-info');
+  if (info && hi && lo) {
+    if (isBullBear) {
+      info.innerHTML = `Most bullish <b>${hm.days[hi.d]} ${fmtHour(hi.h)}</b> `
+        + `<span style="color:#2fb96d;">▲${hi.v.toFixed(1)}%</span> / <span style="color:#ff5a6b;">▼${(100-hi.v).toFixed(1)}%</span>`
+        + ` · Most bearish <b>${hm.days[lo.d]} ${fmtHour(lo.h)}</b> `
+        + `<span style="color:#ff5a6b;">▼${(100-lo.v).toFixed(1)}%</span> / <span style="color:#2fb96d;">▲${lo.v.toFixed(1)}%</span>`;
+    } else {
+      info.innerHTML = `High <b>${hm.days[hi.d]} ${fmtHour(hi.h)}</b> ${hi.v.toFixed(dec)} · Low <b>${hm.days[lo.d]} ${fmtHour(lo.h)}</b> ${lo.v.toFixed(dec)}`;
+    }
+  }
 }
 
 /* ─── Hourly ───────────────────────────────────────────────────────── */
 function drawHourly() {
-  const bh = DATA.by_hour;
+  const bh = sortFromHour5(DATA.by_hour);
 
-  Plotly.newPlot('ch-hour-range', [{
-    x: bh.map(r => fmtHour(r.hour)), y: bh.map(r => r.avg_range),
-    type: 'scatter', mode: 'lines+markers',
-    line: { color: '#2f5fff', width: 2 },
-    marker: { color: '#2f5fff', size: 6 },
-    hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
-  }], { ...LAYOUT_BASE,
-       xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
-       shapes: sessionShapes(), annotations: sessionAnnotations(),
-       margin: { t: 24, r: 10, b: 60, l: 48 } }, CFG);
+  const hourLabels = bh.map(r => fmtHour(r.hour));
 
-  Plotly.newPlot('ch-hour-bull', [{
-    x: bh.map(r => fmtHour(r.hour)), y: bh.map(r => r.bull_pct),
-    type: 'bar',
-    marker: { color: bh.map(r => r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b') },
-    hovertemplate: '%{x}<br>%{y:.1f}%<extra></extra>',
-  }, {
-    x: bh.map(r => fmtHour(r.hour)), y: bh.map(() => 50),
-    type: 'scatter', mode: 'lines',
-    line: { color: '#9a9aa6', width: 1, dash: 'dot' },
-    showlegend: false, hoverinfo: 'skip',
-  }], { ...LAYOUT_BASE,
-       xaxis: { ...LAYOUT_BASE.xaxis, ...HOUR_XAXIS },
-       yaxis: { ...LAYOUT_BASE.yaxis, range: [30, 70] },
-       showlegend: false,
-       shapes: sessionShapes(), annotations: sessionAnnotations(),
-       margin: { t: 24, r: 10, b: 60, l: 48 } }, CFG);
+  ecGet('ch-hour-range').setOption({
+    ...ecBaseLayout({ bottomPad: 60, topPad: 32 }),
+    ...ecZoomBrush({ tall: true }),
+    xAxis: { type: 'category', data: hourLabels, axisLabel: { color: '#888', fontSize: 10, rotate: -45 }, axisLine: { lineStyle: { color: '#d0d0d8' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#e8e8ee' } }, axisLabel: { color: '#888' } },
+    series: [{
+      type: 'line', smooth: false, symbol: 'circle', symbolSize: 6,
+      data: bh.map(r => r.avg_range),
+      lineStyle: { color: '#2f5fff', width: 2 },
+      itemStyle: { color: '#2f5fff' },
+      markArea: ecSessionMarkArea(hourLabels),
+    }],
+  }, true);
 
-  const THIN = new Set([4, 5, 6]);   // NY close + illiquid pre-reset
-  const DEAD = new Set([7]);          // Vantage MT5 broker reset — bar never generated
+  ecGet('ch-hour-bull').setOption({
+    ...ecBaseLayout({ bottomPad: 60, topPad: 32 }),
+    ...ecZoomBrush({ tall: true }),
+    xAxis: { type: 'category', data: hourLabels, axisLabel: { color: '#888', fontSize: 10, rotate: -45 }, axisLine: { lineStyle: { color: '#d0d0d8' } } },
+    yAxis: { type: 'value', min: 30, max: 70, splitLine: { lineStyle: { color: '#e8e8ee' } }, axisLabel: { color: '#888' } },
+    series: [{
+      type: 'bar', barWidth: '70%',
+      data: bh.map(r => ({
+        value: r.bull_pct,
+        itemStyle: { color: r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b' },
+      })),
+      markArea: ecSessionMarkArea(hourLabels),
+      markLine: { silent: true, symbol: 'none', lineStyle: { color: '#9a9aa6', type: 'dotted', width: 1 }, data: [{ yAxis: 50 }], label: { show: false } },
+    }],
+  }, true);
+
+  const THIN = new Set([2, 3]);   // NY close + illiquid pre-reset
+  const DEAD = new Set([4]);      // Vantage MT5 broker reset — bar never generated
   const MON_GAP = new Set([8]);       // Monday first bar — weekend gap risk
   document.querySelector('#tbl-hour tbody').innerHTML = bh.map(r => {
     const isThin = THIN.has(r.hour);
@@ -1213,10 +2606,10 @@ function drawHourly() {
     const rowStyle = isThin ? 'background:#fff8f0;color:#a06020;' :
                      isDead ? 'background:#f5f5f8;color:#999;' : '';
     const warning  = isDead
-      ? `<span title="Vantage MT5 broker reset — no bar generated at 7AM BKK" style="cursor:help;">⛔ Broker Reset</span>`
+      ? `<span title="Vantage MT5 broker reset — no bar generated at 4AM BKK" style="cursor:help;">⛔ Broker Reset</span>`
       : isThin
-        ? `<span title="4–6 AM BKK: NY close + illiquid pre-reset — unreliable" style="cursor:help;">⚠ NY Close</span>`
-        : (isGap ? `<span title="Mon 8AM: first bar after weekend — gap risk. Clean stats shown." style="cursor:help;">⚠ Mon Gap</span>` : biasBadge(r.bull_pct));
+        ? `<span title="2–3 AM BKK: NY close + illiquid pre-reset — unreliable" style="cursor:help;">⚠ NY Close</span>`
+        : (isGap ? `<span title="Mon 5AM: first bar after weekend — gap risk. Clean stats shown." style="cursor:help;">⚠ Mon Gap</span>` : biasBadge(r.bull_pct));
     const cleanRange = r.avg_range_clean != null
       ? `<span style="font-size:10px;color:#888;margin-left:4px;">(clean: ${fmt(r.avg_range_clean, 2)})</span>` : '';
     return `<tr style="${rowStyle}">
@@ -1224,7 +2617,8 @@ function drawHourly() {
       <td>${fmt(r.avg_range)}${cleanRange}</td>
       <td>${fmt(r.avg_body)}</td>
       <td>${fmt(r.avg_move_pct, 4)}%</td>
-      <td>${r.bull_pct}%${r.bull_pct_clean != null && r.bull_pct_clean !== r.bull_pct ? `<span style="font-size:10px;color:#888;margin-left:4px;">(${r.bull_pct_clean}%)</span>` : ''}</td>
+      <td style="color:#2fb96d;">${r.bull_pct}%${r.bull_pct_clean != null && r.bull_pct_clean !== r.bull_pct ? `<span style="font-size:10px;color:#888;margin-left:4px;">(${r.bull_pct_clean}%)</span>` : ''}</td>
+      <td style="color:#ff5a6b;">${r.bear_pct != null ? r.bear_pct+'%' : '—'}${r.bear_pct_clean != null && r.bear_pct_clean !== r.bear_pct ? `<span style="font-size:10px;color:#888;margin-left:4px;">(${r.bear_pct_clean}%)</span>` : ''}</td>
       <td>${r.count}${r.count_clean != null ? `<span style="font-size:10px;color:#888;"> / ${r.count_clean}</span>` : ''}</td>
       <td>${warning}</td>
     </tr>`;
@@ -1235,51 +2629,254 @@ function drawHourly() {
 function drawDaily() {
   const bd = DATA.by_day;
 
-  Plotly.newPlot('ch-day-range', [{
-    x: bd.map(r => r.day_name), y: bd.map(r => r.avg_range),
-    type: 'bar', marker: { color: '#2f5fff' },
-    hovertemplate: '%{x}<br>%{y:.4f}<extra></extra>',
-  }], LAYOUT_BASE, CFG);
+  const dayLabels = bd.map(r => r.day_name);
 
-  Plotly.newPlot('ch-day-bull', [{
-    x: bd.map(r => r.day_name), y: bd.map(r => r.bull_pct), type: 'bar',
-    marker: { color: bd.map(r => r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b') },
-    hovertemplate: '%{x}<br>%{y:.1f}%<extra></extra>',
-  }, {
-    x: bd.map(r => r.day_name), y: bd.map(() => 50), type: 'scatter', mode: 'lines',
-    line: { color: '#9a9aa6', width: 1, dash: 'dot' },
-    showlegend: false, hoverinfo: 'skip',
-  }], { ...LAYOUT_BASE,
-       yaxis: { ...LAYOUT_BASE.yaxis, range: [30, 70] }, showlegend: false }, CFG);
+  ecGet('ch-day-range').setOption({
+    ...ecBaseLayout({ bottomPad: 50, topPad: 26 }),
+    ...ecZoomBrush(),
+    xAxis: { type: 'category', data: dayLabels, axisLabel: { color: '#888' } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#e8e8ee' } }, axisLabel: { color: '#888' } },
+    series: [{
+      type: 'bar', barWidth: '60%',
+      data: bd.map(r => r.avg_range),
+      itemStyle: { color: '#2f5fff' },
+    }],
+  }, true);
+
+  ecGet('ch-day-bull').setOption({
+    ...ecBaseLayout({ bottomPad: 50, topPad: 26 }),
+    ...ecZoomBrush(),
+    xAxis: { type: 'category', data: dayLabels, axisLabel: { color: '#888' } },
+    yAxis: { type: 'value', min: 30, max: 70, splitLine: { lineStyle: { color: '#e8e8ee' } }, axisLabel: { color: '#888' } },
+    series: [{
+      type: 'bar', barWidth: '60%',
+      data: bd.map(r => ({
+        value: r.bull_pct,
+        itemStyle: { color: r.bull_pct > 50 ? '#2fb96d' : '#ff5a6b' },
+      })),
+      markLine: { silent: true, symbol: 'none', lineStyle: { color: '#9a9aa6', type: 'dotted', width: 1 }, data: [{ yAxis: 50 }], label: { show: false } },
+    }],
+  }, true);
 
   document.querySelector('#tbl-day tbody').innerHTML = bd.map(r => `
     <tr>
       <td>${r.day_name}</td>
       <td>${fmt(r.avg_range)}</td>
       <td>${fmt(r.avg_move_pct, 4)}%</td>
-      <td>${r.bull_pct}%</td>
+      <td style="color:#2fb96d;">${r.bull_pct}%</td>
+      <td style="color:#ff5a6b;">${r.bear_pct != null ? r.bear_pct+'%' : '—'}</td>
       <td>${r.count}</td>
       <td>${biasBadge(r.bull_pct)}</td>
     </tr>`).join('');
 }
 
+/* ─── Top Slots filters ─────────────────────────────────────────────── */
+const TOP_FILTER = { session: 'all', day: 'all', bias: 'all', sig: 'all', minN: '0' };
+
+function topFilter(key, val, el) {
+  TOP_FILTER[key] = val;
+  // toggle active button in group
+  document.querySelectorAll(`#top-filters [data-f="${key}"]`).forEach(b => b.classList.remove('on','on-bull','on-bear','on-neutral','on-sig'));
+  if (val === 'bull')    el.classList.add('on-bull');
+  else if (val === 'bear')    el.classList.add('on-bear');
+  else if (val === 'neutral') el.classList.add('on-neutral');
+  else if (key === 'sig' && val !== 'all') el.classList.add('on-sig');
+  else el.classList.add('on');
+  drawTop();
+}
+
+function applyTopFilters(slots) {
+  return slots.filter(r => {
+    if (TOP_FILTER.session !== 'all' && sessionFor(r.hour) !== TOP_FILTER.session) return false;
+    if (TOP_FILTER.day     !== 'all' && String(r.dow) !== TOP_FILTER.day) return false;
+    if (TOP_FILTER.minN    !== '0'   && r.count < parseInt(TOP_FILTER.minN)) return false;
+    if (TOP_FILTER.sig !== 'all' && (r.p_value == null || r.p_value >= parseFloat(TOP_FILTER.sig))) return false;
+    if (TOP_FILTER.bias !== 'all') {
+      const isBull    = r.bull_pct > 55;
+      const isBear    = r.bull_pct < 45;
+      const isNeutral = !isBull && !isBear;
+      if (TOP_FILTER.bias === 'bull'    && !isBull)    return false;
+      if (TOP_FILTER.bias === 'bear'    && !isBear)    return false;
+      if (TOP_FILTER.bias === 'neutral' && !isNeutral) return false;
+    }
+    return true;
+  });
+}
+
 /* ─── Top Slots ────────────────────────────────────────────────────── */
+function pValueBadge(p) {
+  if (p == null) return '—';
+  let sig, color;
+  if      (p < 0.01) { sig = '★★'; color = '#2fb96d'; }
+  else if (p < 0.05) { sig = '★';  color = '#7ec8a4'; }
+  else if (p < 0.10) { sig = '~';  color = '#f5a524'; }
+  else               { sig = 'ns'; color = '#9a9aa6'; }
+  return `<span style="color:${color};font-weight:700;font-size:11px;" title="Two-sided binomial z-test vs 50% — p=${p}">${sig}</span>`
+       + `&nbsp;<span style="color:var(--muted);font-size:11px;">${(+p).toFixed(3)}</span>`;
+}
+function sessionFor(h) {
+  if (h >= 19 && h <= 22) return 'London-NY OVL';
+  if (h >= 19 || h <= 5)  return 'NY';
+  if (h >= 14 && h <= 18) return 'London';
+  if (h >= 6  && h <= 13) return 'Asia';
+  return 'Off-hours';
+}
+function sessionBadge(name) {
+  const c = SESSION_COLORS[name]?.line || '#9a9aa6';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:${c};border:1px solid ${c}40;background:${c}15;">${name.replace('London-NY OVL','OVERLAP')}</span>`;
+}
+function isTopFilterDefault() {
+  return TOP_FILTER.session === 'all' && TOP_FILTER.day === 'all' &&
+         TOP_FILTER.bias === 'all' && TOP_FILTER.sig === 'all' && TOP_FILTER.minN === '0';
+}
+
 function drawTop() {
-  document.querySelector('#tbl-top tbody').innerHTML = DATA.top_slots.map((r, i) => `
+  const filtered  = applyTopFilters(DATA.top_slots);
+  const isDefault = isTopFilterDefault();
+  const rows      = isDefault ? filtered.slice(0, 20) : filtered;
+  const total     = DATA.top_slots.length;
+
+  const countEl = document.getElementById('top-slot-count');
+  if (isDefault) {
+    countEl.textContent = `Top 20 of ${total} slots`;
+  } else {
+    countEl.textContent = `${rows.length} of ${total} slots`;
+  }
+
+  document.querySelector('#tbl-top tbody').innerHTML = rows.length === 0
+    ? `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px;">No slots match the current filters.</td></tr>`
+    : rows.map((r, i) => `
     <tr>
       <td class="rank">${i+1}</td>
       <td>${r.day_name}</td>
       <td>${fmtHour(r.hour)}</td>
+      <td>${sessionBadge(sessionFor(r.hour))}</td>
       <td>${fmt(r.avg_range)}</td>
       <td>${fmt(r.avg_move_pct, 4)}%</td>
-      <td>${r.bull_pct}%</td>
+      <td style="color:#2fb96d;">${r.bull_pct}%</td>
+      <td style="color:#ff5a6b;">${r.bear_pct != null ? r.bear_pct+'%' : '—'}</td>
       <td>${r.count}</td>
       <td>${biasBadge(r.bull_pct)}</td>
+      <td>${pValueBadge(r.p_value)}</td>
     </tr>`).join('');
 }
 
 loadStats();
 setInterval(loadNowOnly, 60000);  // refresh NOW panel every minute
+
+// Auto-refresh from MT5 every 60s (silent; toggle in topbar)
+renderAutoToggle();
+renderAutoStatus();
+startAutoRefresh();
+setInterval(renderAutoStatus, 1000);  // tick "updated Ns ago" label
+
+// Restore last-selected help sub-view (defaults to "user")
+setHelpView(HELP_VIEW);
+
+/* ─── Ctrl+Click → Help ─────────────────────────────────────────────── */
+const HELP_LABELS = {
+  'h-overview':         'Overview Panel',
+  'h-overview-now':     'NOW Hero',
+  'h-overview-regime':  'Regime Banner',
+  'h-overview-forecast':'Forecast Strip',
+  'h-overview-kpi':     'KPI Cards',
+  'h-overview-hourchart':'Hourly Chart',
+  'h-overview-daychart': 'Daily Chart',
+  'h-overview-bias':    'Bull/Bear Bias',
+  'h-heatmap':          'Heatmap',
+  'h-heatmap-read':     'Reading the Heatmap',
+  'h-heatmap-modes':    'Heatmap Metric Modes',
+  'h-hourly':           'By Hour Panel',
+  'h-hourly-charts':    'Hourly Charts',
+  'h-hourly-table':     'Hourly Stats Table',
+  'h-daily':            'By Day Panel',
+  'h-daily-charts':     'Daily Charts',
+  'h-daily-table':      'Daily Stats Table',
+  'h-top':              'Top Slots',
+  'h-settings':         'Settings',
+  'h-settings-period':  'Analysis Period',
+  'h-settings-lookback':'Regime Lookback',
+  'h-data':             'Data Source',
+  'h-tz':               'Trading Sessions',
+  'h-special':          'Special Hours',
+  'h-metrics':          'Core Metrics',
+  'h-confidence':       'Confidence Score',
+  'h-workflow':         'Workflow Guide',
+  // user-guide-only anchors
+  'u-quick':            'Quick Start',
+  'u-legend':           'Color & Badge Legend',
+  'u-topbar':           'Top Bar Controls',
+  'u-sidebar':          'Sidebar Navigation',
+  // technical-reference anchors
+  't-pipeline':         'Data Pipeline',
+  't-pvalue':           'P-Value (Significance)',
+  't-optimal':          'Optimal Edge Score',
+  't-regime':           'Regime Delta',
+  't-api':              'API Endpoints',
+  't-files':            'File Layout',
+};
+
+function goHelp(anchor) {
+  setTabByName('help');
+  // Wait for the Help tab to become visible, then use sub-view-aware scroll
+  setTimeout(() => scrollHelp(anchor), 80);
+}
+
+const tooltip   = document.getElementById('help-tooltip');
+const tipText   = document.getElementById('help-tooltip-text');
+let   tipTarget = null;
+
+function findHelpAncestor(el) {
+  while (el && el !== document.body) {
+    if (el.dataset && el.dataset.help) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Control') document.body.classList.add('ctrl-held');
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'Control') {
+    document.body.classList.remove('ctrl-held');
+    tooltip.classList.remove('show');
+    tipTarget = null;
+  }
+});
+// Lose ctrl-held if window loses focus
+window.addEventListener('blur', () => {
+  document.body.classList.remove('ctrl-held');
+  tooltip.classList.remove('show');
+  tipTarget = null;
+});
+
+document.addEventListener('mousemove', e => {
+  if (!document.body.classList.contains('ctrl-held')) return;
+  const hit = findHelpAncestor(e.target);
+  if (hit) {
+    tipTarget = hit;
+    const anchor = hit.dataset.help;
+    tipText.textContent = HELP_LABELS[anchor] || 'View in Help';
+    tooltip.classList.add('show');
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 10) + 'px';
+  } else {
+    tooltip.classList.remove('show');
+    tipTarget = null;
+  }
+});
+
+document.addEventListener('click', e => {
+  if (!e.ctrlKey) return;
+  const hit = findHelpAncestor(e.target);
+  if (!hit) return;
+  e.preventDefault();
+  e.stopPropagation();
+  tooltip.classList.remove('show');
+  document.body.classList.remove('ctrl-held');
+  goHelp(hit.dataset.help);
+});
 </script>
 </body>
 </html>
