@@ -1,0 +1,3 @@
+[build]
+  command = "pip install -r requirements.txt && python build_static.py"
+  publish = "static"
